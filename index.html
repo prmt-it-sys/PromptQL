@@ -355,7 +355,8 @@ let searchTerm = "";
 let editingIndex = -1; // -1 = new
 
 /* ---------- Crypto (AES-256-GCM + PBKDF2-SHA256) ---------- */
-const _b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const _b64 = buf => { const b=new Uint8Array(buf); let s=""; const CH=0x8000;
+  for(let i=0;i<b.length;i+=CH){ s+=String.fromCharCode.apply(null,b.subarray(i,i+CH)); } return btoa(s); };
 const _unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
 async function _deriveKey(pass, salt){
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
