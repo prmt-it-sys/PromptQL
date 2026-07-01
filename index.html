@@ -161,6 +161,18 @@ article.card{background:var(--surface);border:1px solid var(--line);border-radiu
   padding:12px 14px;margin:10px 0;font-size:12.5px;color:var(--ink-2)}
 .img-ph svg{color:var(--ink-3);flex:none}
 
+/* Card sections (accordion of all board cards) */
+.sect{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.sect-head{width:100%;display:flex;align-items:center;gap:10px;background:#fafbfd;border:none;cursor:pointer;
+  padding:13px 16px;font-family:inherit;text-align:left}
+.sect-head:hover{background:#f1f3f8}
+.sect-caret{color:var(--ink-3);transition:transform .15s;font-size:11px;flex:none}
+.sect.open .sect-caret{transform:rotate(90deg)}
+.sect-title{font-weight:700;font-size:14.5px;color:var(--ink);flex:1;line-height:1.3}
+.sect-guru{font-size:12px;font-weight:700;color:var(--accent);white-space:nowrap;flex:none}
+.sect-body{display:none;padding:2px 18px 18px}
+.sect.open .sect-body{display:block}
+
 /* Related cards */
 .related{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft)}
 .related h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
@@ -283,8 +295,6 @@ body.locked .app{filter:blur(6px);pointer-events:none}
       <button class="chip active" data-f="all">All</button>
       <button class="chip" data-f="unity">Unity</button>
       <button class="chip" data-f="core">Core</button>
-      <button class="chip" data-f="trusted">Verified</button>
-      <button class="chip" data-f="needs">Needs review</button>
     </div>
     <span class="rcount" id="rcount"></span>
   </div>
@@ -312,9 +322,6 @@ body.locked .app{filter:blur(6px);pointer-events:none}
       <div class="row2">
         <div class="field"><label>Tier</label>
           <select id="fTier"><option value="">—</option><option>Unity</option><option>Core</option></select>
-        </div>
-        <div class="field"><label>Verification</label>
-          <select id="fStatus"><option value="TRUSTED">Verified</option><option value="NEEDS_VERIFICATION">Needs review</option><option value="UNKNOWN">Unknown</option></select>
         </div>
       </div>
       <div class="field"><label>Tags <span class="hint">(comma separated)</span></label><input id="fTags" type="text" /></div>
@@ -445,10 +452,9 @@ function applyFilter(){
   filtered = DATA.clients.filter(c=>{
     if(filterMode==="unity" && c.tier!=="Unity") return false;
     if(filterMode==="core" && c.tier!=="Core") return false;
-    if(filterMode==="trusted" && c.verificationStatus!=="TRUSTED") return false;
-    if(filterMode==="needs" && c.verificationStatus!=="NEEDS_VERIFICATION") return false;
     if(q){
-      const hay = (c.name+" "+(c.notes||"")+" "+(c.html||"")+" "+(c.tags||[]).join(" ")).toLowerCase();
+      const cardText = (c.cards||[]).map(cd=>(cd.title||"")+" "+(cd.html||"")).join(" ");
+      const hay = (c.name+" "+(c.notes||"")+" "+(c.html||"")+" "+cardText+" "+(c.tags||[]).join(" ")).toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
@@ -456,11 +462,6 @@ function applyFilter(){
 }
 
 /* ---------- Render list ---------- */
-function statusBadge(s){
-  if(s==="TRUSTED") return '<span class="badge ok">Verified</span>';
-  if(s==="NEEDS_VERIFICATION") return '<span class="badge warn">Needs review</span>';
-  return '<span class="badge neutral">Unverified</span>';
-}
 function tierChip(t){
   if(t==="Unity") return '<span class="tier unity">Unity</span>';
   if(t==="Core") return '<span class="tier core">Core</span>';
@@ -478,8 +479,7 @@ function render(){
     const b = el("button","item"+(c.slug===activeSlug?" active":""));
     b.innerHTML =
       '<div class="it-top"><span class="it-name">'+esc(c.name)+'</span>'+tierChip(c.tier)+'</div>'+
-      '<div class="it-sub">'+statusBadge(c.verificationStatus)+
-        (c.board?'<span>· '+esc(c.board)+' board</span>':'')+'</div>'+
+      (c.board?'<div class="it-sub"><span>'+esc(c.board)+' board</span></div>':'')+
       (c.notes?'<div class="it-notes">'+esc(c.notes)+'</div>':'');
     b.onclick=()=>{ activeSlug=c.slug; document.body.classList.add("detail"); render(); renderReader(); };
     list.appendChild(b);
@@ -505,35 +505,44 @@ function renderReader(){
   const meta = [];
   if(c.owner) meta.push('<span class="m"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'+esc(c.owner)+'</span>');
   if(c.lastModified) meta.push('<span class="m"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Updated '+fmtDate(c.lastModified)+'</span>');
-  const related = (c.otherCardsInBoard||[]).filter(x=>x&&x.title);
+  // Cards: prefer the multi-card model; fall back to legacy single-body clients.
+  const cards = (c.cards && c.cards.length) ? c.cards : [{title:null, html:c.html||"", guruUrl:c.guruUrl}];
+  const single = cards.length===1;
+  const bodyHtml = cards.map((card,i)=>{
+    const inner = '<div class="content">'+ transformBody(card.html||"") +'</div>';
+    if(single && !card.title){ return inner; }
+    return '<section class="sect'+(i===0?' open':'')+'">'+
+      '<button class="sect-head" data-i="'+i+'"><span class="sect-caret">▶</span>'+
+        '<span class="sect-title">'+esc(card.title||('Card '+(i+1)))+'</span>'+
+        (card.guruUrl?'<a class="sect-guru" href="'+esc(card.guruUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Guru ↗</a>':'')+
+      '</button><div class="sect-body">'+inner+'</div></section>';
+  }).join('');
   r.innerHTML =
     '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to list</button>'+
-    '<div class="editbar edit-only"><span class="grow">Editing is on. Changes save to this browser — click <b>Export JSON</b> and commit the file to publish for the team.</span>'+
+    '<div class="editbar edit-only"><span class="grow">Editing is on. Changes save to this browser — click <b>Export data</b> and commit the file to publish for the team.</span>'+
       '<button class="mini" id="editThis">Edit this client</button></div>'+
     '<article class="card"><div class="card-head">'+
-      '<div class="kicker"><span class="dot"></span>PRMT Client · '+(c.tier?esc(c.tier)+' tier':'Client profile')+'</div>'+
+      '<div class="kicker"><span class="dot"></span>PRMT Client · '+(c.tier?esc(c.tier)+' tier':'Client profile')+
+        (single?'':' · '+cards.length+' cards')+'</div>'+
       '<h1>'+esc(c.name)+'</h1>'+
-      '<div class="head-badges">'+statusBadge(c.verificationStatus)+tierChip(c.tier)+
+      '<div class="head-badges">'+tierChip(c.tier)+
         (c.guruUrl?'<a class="open-guru" href="'+esc(c.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
       (meta.length?'<div class="meta">'+meta.join('')+'</div>':'')+
       ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
     '</div>'+
-    '<div class="card-body"><div class="content">'+ transformBody(c.html) +'</div>'+
-      (related.length?'<div class="related"><h4>More in this board</h4><div class="rgrid">'+
-        related.map(x=>'<span class="rpill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/></svg>'+esc(x.title)+'</span>').join('')+
-        '</div></div>':'')+
-    '</div></article>';
+    '<div class="card-body">'+ bodyHtml +'</div></article>';
+  r.querySelectorAll('.sect-head').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
   const et = $("#editThis"); if(et) et.onclick=()=>openEdit(DATA.clients.indexOf(c));
 }
 
 /* ---------- Edit / add ---------- */
 function openEdit(idx){
   editingIndex = idx;
-  const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",verificationStatus:"NEEDS_VERIFICATION",tags:[],guruUrl:"",notes:"",html:""};
+  const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",tags:[],guruUrl:"",notes:"",html:""};
   $("#modalTitle").textContent = idx>=0 ? "Edit client" : "Add new client";
-  $("#fName").value=c.name||""; $("#fTier").value=c.tier||""; $("#fStatus").value=c.verificationStatus||"NEEDS_VERIFICATION";
+  $("#fName").value=c.name||""; $("#fTier").value=c.tier||"";
   $("#fTags").value=(c.tags||[]).join(", "); $("#fUrl").value=c.guruUrl||""; $("#fNotes").value=c.notes||"";
-  $("#fHtml").value=c.html||"";
+  $("#fHtml").value = (c.cards && c.cards.length) ? (c.cards[0].html||"") : (c.html||"");
   $("#fDelete").style.display = idx>=0 ? "" : "none";
   $("#modalBack").classList.add("show");
 }
@@ -542,28 +551,29 @@ function closeEdit(){ $("#modalBack").classList.remove("show"); }
 function saveEdit(){
   const name = $("#fName").value.trim();
   if(!name){ toast("Client name is required"); return; }
+  const body = $("#fHtml").value;
   const obj = {
     name,
     tier: $("#fTier").value,
-    verificationStatus: $("#fStatus").value,
     tags: $("#fTags").value.split(",").map(s=>s.trim()).filter(Boolean),
     guruUrl: $("#fUrl").value.trim(),
     notes: $("#fNotes").value.trim(),
-    html: $("#fHtml").value,
   };
   if(editingIndex>=0){
     const cur = DATA.clients[editingIndex];
     Object.assign(cur, obj);
+    // write the body back into the primary card (preserving other board cards) or legacy html
+    if(cur.cards && cur.cards.length){ cur.cards[0].html = body; } else { cur.html = body; }
     activeSlug = cur.slug;
   }else{
     obj.slug = uniqueSlug(slugify(name));
     obj.id = "local-"+Date.now();
-    obj.otherCardsInBoard=[];
+    obj.cards = [{title:"Basic Client Info", html: body, guruUrl: obj.guruUrl}];
     DATA.clients.push(obj);
     DATA.clients.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     activeSlug = obj.slug;
   }
-  persist(); closeEdit(); render(); renderReader(); toast("Saved locally — Export JSON to publish");
+  persist(); closeEdit(); render(); renderReader(); toast("Saved locally — Export data to publish");
 }
 function uniqueSlug(base){let s=base,k=2;const has=x=>DATA.clients.some(c=>c.slug===x);while(has(s)){s=base+"-"+k;k++;}return s;}
 function deleteClient(){
