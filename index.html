@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRMT · Client Directory</title>
+<link rel="icon" type="image/svg+xml" href="assets/logo_prmt_White-Favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   PRMT BRAND TOKENS  —  sourced from prmt.com's live CSS.
+   Font: Outfit. Black #050505 · Electric blue #002BFF · Lime #D9FF42.
+   Swap the hex values below and the whole UI re-skins.
+   ============================================================ */
+:root{
+  --brand-navy:      #050505;   /* PRMT black — primary dark bg    */
+  --brand-navy-2:    #101010;   /* raised dark surface             */
+  --brand-panel:     #161616;   /* cards / sidebar on dark         */
+  --brand-line:      #2a2a2a;   /* borders on dark                 */
+  --brand-accent:    #002BFF;   /* PRMT electric blue (primary)    */
+  --brand-accent-2:  #D9FF42;   /* PRMT lime (energy pop)          */
+  --brand-ink:       #ffffff;   /* text on dark                    */
+  --brand-ink-soft:  #b6b6b6;   /* muted text on dark              */
+
+  /* Light content area (the reader) */
+  --bg:        #f4f5f7;
+  --surface:   #ffffff;
+  --line:      #e6e7ea;
+  --line-soft: #eef0f3;
+  --ink:       #0b0b0c;
+  --ink-2:     #5c5c5c;
+  --ink-3:     #909097;
+  --accent:    var(--brand-accent);
+
+  --ok-bg:#e5f6ec; --ok-fg:#12864a;
+  --warn-bg:#fdefd9; --warn-fg:#b9760e;
+  --neutral-bg:#ededf0; --neutral-fg:#5c5c5c;
+  --unity-bg:#e4e8ff; --unity-fg:#002bff;
+  --core-bg:#f0f7d6; --core-fg:#5a7a00;
+
+  --radius:10px;
+  --shadow:0 1px 3px rgba(5,5,5,.06),0 8px 24px rgba(5,5,5,.07);
+  --font:'Outfit',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.app{height:100%;display:flex;flex-direction:column;min-height:0}
+
+/* ---------- Top brand bar ---------- */
+.topbar{background:var(--brand-navy);color:var(--brand-ink);display:flex;align-items:center;gap:18px;
+  padding:0 20px;height:60px;flex:none;border-bottom:1px solid var(--brand-line)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .logo{display:flex;align-items:center;gap:10px}
+.brand .logo img{height:24px;width:auto;display:block}
+.brand .logo svg{display:block}
+.brand .divider{width:1px;height:24px;background:var(--brand-line)}
+.brand .app-name{font-size:14px;font-weight:600;color:var(--brand-ink-soft);letter-spacing:.01em}
+.topbar .spacer{flex:1}
+.topbar .count-pill{font-size:12px;color:var(--brand-ink-soft);background:var(--brand-navy-2);
+  border:1px solid var(--brand-line);padding:6px 12px;border-radius:20px;white-space:nowrap}
+.tbtn{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer;
+  background:var(--brand-navy-2);color:var(--brand-ink);border:1px solid var(--brand-line);
+  padding:8px 13px;border-radius:8px;transition:background .12s,border-color .12s}
+.tbtn:hover{background:#1c1c1c;border-color:#3a3a3a}
+.tbtn.primary{background:var(--brand-accent);border-color:var(--brand-accent);color:#fff}
+.tbtn.primary:hover{background:#1f47ff}
+.tbtn.on:hover{background:#c7ef2c}
+.tbtn.on{background:var(--brand-accent-2);border-color:var(--brand-accent-2);color:#0b0b0c}
+.tbtn svg{display:block}
+
+/* ---------- Toolbar ---------- */
+.toolbar{background:var(--surface);border-bottom:1px solid var(--line);flex:none;
+  display:flex;align-items:center;gap:12px;padding:11px 20px;flex-wrap:wrap}
+.search{position:relative;flex:1;min-width:220px;max-width:460px}
+.search input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:8px;
+  font-size:13.5px;outline:none;background:#fbfcfe}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12.5px;font-weight:600;color:var(--ink-2);background:#fff;border:1px solid var(--line);
+  padding:6px 12px;border-radius:20px;cursor:pointer;transition:.12s}
+.chip:hover{border-color:#c6cede}
+.chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.toolbar .rcount{margin-left:auto;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+/* ---------- Body: sidebar + reader ---------- */
+.body{flex:1;display:flex;min-height:0}
+.sidebar{width:340px;min-width:270px;background:#fbfcfe;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0}
+.list{flex:1;overflow-y:auto;padding:8px}
+.empty{padding:24px 16px;color:var(--ink-3);font-size:13px;text-align:center}
+.item{display:block;width:100%;text-align:left;background:transparent;border:1px solid transparent;
+  border-radius:10px;padding:12px 13px;margin-bottom:4px;cursor:pointer;transition:.12s}
+.item:hover{background:#eef2f9}
+.item.active{background:#e9f0ff;border-color:#c4d5fb}
+.item .it-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.item .it-name{font-size:14px;font-weight:700;color:var(--ink);flex:1;line-height:1.25}
+.item .it-sub{font-size:11.5px;color:var(--ink-3);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.item .it-notes{font-size:12px;color:var(--ink-2);line-height:1.4;margin-top:6px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+.badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.badge.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.badge.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.badge.neutral{background:var(--neutral-bg);color:var(--neutral-fg)}
+.tier{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em}
+.tier.unity{background:var(--unity-bg);color:var(--unity-fg)}
+.tier.core{background:var(--core-bg);color:var(--core-fg)}
+
+/* ---------- Reader ---------- */
+.reader{flex:1;overflow-y:auto;min-width:0;padding:24px}
+.reader .placeholder{max-width:520px;margin:8vh auto 0;text-align:center;color:var(--ink-3)}
+.reader .placeholder h2{color:var(--ink-2);font-weight:700}
+article.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  max-width:940px;margin:0 auto;box-shadow:var(--shadow);overflow:hidden}
+.card-head{padding:24px 30px;border-bottom:1px solid var(--line-soft);
+  background:linear-gradient(180deg,#fbfcff, #fff)}
+.card-head .kicker{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.card-head .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--brand-accent-2)}
+.card-head h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+.card-head .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+.card-head .meta .m{display:flex;align-items:center;gap:6px}
+.card-head .meta svg{color:var(--ink-3)}
+.head-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.open-guru{margin-left:auto;font-size:12.5px;font-weight:700;border:1px solid #cddafc;background:#f2f6ff;
+  color:var(--accent);padding:7px 12px;border-radius:8px}
+.open-guru:hover{background:#e7efff;text-decoration:none}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.tag{font-size:11px;background:#eef1f6;color:var(--ink-2);padding:3px 10px;border-radius:20px}
+
+.card-body{padding:24px 30px}
+
+/* Guru-style rich content */
+.content{font-size:14.5px;line-height:1.62;color:var(--ink);word-wrap:break-word;overflow-wrap:anywhere}
+.content p{margin:0 0 12px}
+.content h1{font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-accent);
+  margin:24px 0 10px;font-weight:800;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.content h2{font-size:16px;margin:20px 0 9px;font-weight:700}
+.content h3{font-size:14.5px;margin:16px 0 8px;font-weight:700}
+.content ul,.content ol{margin:0 0 12px;padding-left:22px}
+.content ul ul,.content ul ol{margin:4px 0}
+.content li{margin:4px 0}
+.content strong{font-weight:700}
+.content del{color:var(--ink-3)}
+.content hr{border:none;border-top:1px solid var(--line);margin:18px 0}
+.content blockquote{margin:0 0 12px;padding:8px 14px;border-left:3px solid var(--brand-accent);
+  background:#f5f6ff;color:var(--ink-2);border-radius:0 6px 6px 0}
+.content table{border-collapse:collapse;width:100%;margin:6px 0 16px;font-size:13.5px;display:block;overflow-x:auto}
+.content td,.content th{border:1px solid var(--line);padding:8px 11px;vertical-align:top;text-align:left}
+.content th{background:#f4f6fa;font-weight:700}
+.content tr:nth-child(2n) td{background:#fafbfd}
+.content a{color:var(--accent)}
+.img-ph{display:flex;align-items:center;gap:10px;background:#f6f8fc;border:1px dashed #c9d3e6;border-radius:10px;
+  padding:12px 14px;margin:10px 0;font-size:12.5px;color:var(--ink-2)}
+.img-ph svg{color:var(--ink-3);flex:none}
+
+/* Related cards */
+.related{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft)}
+.related h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.related .rgrid{display:flex;flex-wrap:wrap;gap:8px}
+.related .rpill{font-size:12.5px;font-weight:600;color:var(--ink-2);background:#f4f6fa;border:1px solid var(--line);
+  padding:7px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:7px}
+.related .rpill svg{color:var(--ink-3)}
+
+/* ---------- Edit affordances ---------- */
+.editbar{display:none;background:#fffbe9;border:1px solid #f2e2ad;color:#7a5c07;border-radius:10px;
+  padding:10px 14px;margin:0 auto 14px;max-width:940px;font-size:13px;align-items:center;gap:10px}
+body.editing .editbar{display:flex}
+.editbar .grow{flex:1}
+.mini{font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  padding:6px 11px;border-radius:7px}
+.mini:hover{border-color:#c6cede}
+.mini.danger{color:#c0392b;border-color:#f0c9c3;background:#fdf3f2}
+.mini.go{color:#fff;background:var(--accent);border-color:var(--accent)}
+body:not(.editing) .edit-only{display:none !important}
+
+/* Modal */
+.modal-back{position:fixed;inset:0;background:rgba(14,20,32,.55);display:none;align-items:flex-start;
+  justify-content:center;padding:40px 16px;z-index:50;overflow-y:auto}
+.modal-back.show{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:720px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.modal h3{margin:0;padding:18px 22px;border-bottom:1px solid var(--line);font-size:17px}
+.modal .mbody{padding:18px 22px;max-height:70vh;overflow-y:auto}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em}
+.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  font-size:13.5px;font-family:inherit;outline:none;background:#fff}
+.field textarea{min-height:220px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.5}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
+.field .hint{font-size:11.5px;color:var(--ink-3);margin-top:4px;font-weight:400;text-transform:none;letter-spacing:0}
+.row2{display:flex;gap:12px}.row2>*{flex:1}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.3);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Mobile ---------- */
+.backbtn{display:none;background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;
+  cursor:pointer;padding:0 0 12px;align-items:center;gap:6px}
+@media(max-width:820px){
+  .topbar{flex-wrap:wrap;height:auto;padding:10px 14px;gap:10px}
+  .topbar .count-pill{display:none}
+  .sidebar{width:100%;min-width:0;border-right:none}
+  .reader{padding:14px}
+  .card-head,.card-body{padding:18px}
+  .backbtn{display:inline-flex}
+  body.detail .sidebar{display:none}
+  body:not(.detail) .reader{display:none}
+}
+
+/* ---------- Lock screen ---------- */
+.lock{position:fixed;inset:0;z-index:100;background:var(--brand-navy);color:var(--brand-ink);
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.lock-card{width:100%;max-width:380px;text-align:center}
+.lock-card img{height:34px;width:auto;margin:0 auto 22px;display:block}
+.lock-card h1{font-size:19px;font-weight:700;margin:0 0 6px}
+.lock-card p{font-size:13.5px;color:var(--brand-ink-soft);margin:0 0 22px;line-height:1.5}
+.lock-form{display:flex;gap:8px}
+.lock-form input{flex:1;padding:12px 14px;border-radius:10px;border:1px solid var(--brand-line);
+  background:var(--brand-navy-2);color:var(--brand-ink);font-size:14px;outline:none;font-family:inherit}
+.lock-form input:focus{border-color:var(--brand-accent);box-shadow:0 0 0 3px rgba(0,43,255,.35)}
+.lock-form button{padding:12px 18px;border-radius:10px;border:none;background:var(--brand-accent);
+  color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+.lock-form button:hover{background:#1f47ff}
+.lock-form button:disabled{opacity:.6;cursor:default}
+.lock-err{color:#ff8f8f;font-size:12.5px;margin-top:12px;min-height:16px;font-weight:600}
+.lock-hint{color:var(--brand-ink-soft);font-size:11.5px;margin-top:18px;line-height:1.5}
+body.locked{overflow:hidden}
+body.locked .app{filter:blur(6px);pointer-events:none}
+</style>
+</head>
+<body>
+<!-- Lock screen -->
+<div class="lock" id="lock" style="display:none">
+  <div class="lock-card">
+    <img src="assets/image-14-1.webp" alt="PRMT" />
+    <h1>Client Directory</h1>
+    <p>This dashboard is protected. Enter the team access password to continue.</p>
+    <form class="lock-form" id="lockForm" autocomplete="off">
+      <input id="lockInput" type="password" placeholder="Access password" autocomplete="current-password" autofocus />
+      <button type="submit" id="lockBtn">Unlock</button>
+    </form>
+    <div class="lock-err" id="lockErr"></div>
+    <div class="lock-hint">Shared with the PRMT team. Contact your admin if you don't have it.</div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Top brand bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">
+        <!-- Official PRMT white wordmark (from prmt.com) -->
+        <img src="assets/image-14-1.webp" alt="PRMT" />
+      </span>
+      <span class="divider"></span>
+      <span class="app-name">Client Directory</span>
+    </div>
+    <span class="spacer"></span>
+    <span class="count-pill" id="countPill">— clients</span>
+    <button class="tbtn edit-only primary" id="btnAdd">+ Add client</button>
+    <button class="tbtn edit-only" id="btnExport">Export data</button>
+    <button class="tbtn edit-only" id="btnChangePw">Change password</button>
+    <button class="tbtn" id="btnEdit">Edit mode</button>
+  </header>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="text" placeholder="Search clients, contacts, addresses…" autocomplete="off" />
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip active" data-f="all">All</button>
+      <button class="chip" data-f="unity">Unity</button>
+      <button class="chip" data-f="core">Core</button>
+      <button class="chip" data-f="trusted">Verified</button>
+      <button class="chip" data-f="needs">Needs review</button>
+    </div>
+    <span class="rcount" id="rcount"></span>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <aside class="sidebar">
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="reader" id="reader">
+      <div class="placeholder">
+        <h2>Select a client</h2>
+        <p>Pick a client from the list to view their full profile — contacts, addresses, network notes and more, pulled from Guru.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <h3 id="modalTitle">Edit client</h3>
+    <div class="mbody">
+      <div class="field"><label>Client name</label><input id="fName" type="text" /></div>
+      <div class="row2">
+        <div class="field"><label>Tier</label>
+          <select id="fTier"><option value="">—</option><option>Unity</option><option>Core</option></select>
+        </div>
+        <div class="field"><label>Verification</label>
+          <select id="fStatus"><option value="TRUSTED">Verified</option><option value="NEEDS_VERIFICATION">Needs review</option><option value="UNKNOWN">Unknown</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Tags <span class="hint">(comma separated)</span></label><input id="fTags" type="text" /></div>
+      <div class="field"><label>Guru URL</label><input id="fUrl" type="text" placeholder="https://app.getguru.com/card/…" /></div>
+      <div class="field"><label>Summary note</label><input id="fNotes" type="text" /></div>
+      <div class="field"><label>Profile body <span class="hint">(HTML — use &lt;h1&gt; section headings, &lt;ul&gt;&lt;li&gt; lists, &lt;p&gt; paragraphs)</span></label>
+        <textarea id="fHtml"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mini danger" id="fDelete">Delete client</button>
+      <span style="flex:1"></span>
+      <button class="mini" id="fCancel">Cancel</button>
+      <button class="mini go" id="fSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SS_KEY  = "prmt_clients_v1";   // working edits (session only)
+const SS_PASS = "prmt_pass_v1";      // access password (session only)
+const ENC_FILE = "clients.enc.json"; // encrypted data published to the repo
+const KDF_ITER = 310000;             // PBKDF2 iterations (OWASP-tier)
+let DATA = {clients:[]};
+let ENC_META = {source:"PRMT Client Directory"}; // non-secret metadata for re-export
+let filtered = [];
+let activeSlug = null;
+let filterMode = "all";
+let searchTerm = "";
+let editingIndex = -1; // -1 = new
+
+/* ---------- Crypto (AES-256-GCM + PBKDF2-SHA256) ---------- */
+const _b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const _unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+async function _deriveKey(pass, salt){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:KDF_ITER, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+}
+async function encryptJSON(pass, obj){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await _deriveKey(pass, salt);
+  const ct   = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return {format:"prmt-enc", v:1, kdf:"PBKDF2-SHA256", iter:KDF_ITER,
+          salt:_b64(salt), iv:_b64(iv), data:_b64(ct)};
+}
+async function decryptJSON(pass, blob){
+  const key = await _deriveKey(pass, _unb64(blob.salt));
+  const pt  = await crypto.subtle.decrypt({name:"AES-GCM", iv:_unb64(blob.iv)}, key, _unb64(blob.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+const $ = s => document.querySelector(s);
+const el = (t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function slugify(s){return (s||"").normalize("NFKD").replace(/[^\w\s-]/g,"").trim().replace(/\s+/g,"-").toLowerCase()||"client";}
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ---------- Load ---------- */
+let ENC_BLOB = null;
+
+function useData(obj){
+  DATA = obj || {clients:[]};
+  if(!Array.isArray(DATA.clients)) DATA.clients = [];
+  ENC_META = {source: DATA.source || "PRMT Client Directory"};
+  document.body.classList.remove("locked");
+  $("#lock").style.display = "none";
+  render();
+}
+
+async function load(){
+  // 1) Working edits from this browser session take precedence (already decrypted).
+  const saved = sessionStorage.getItem(SS_KEY);
+  if(saved){ try{ useData(JSON.parse(saved)); return; }catch(e){} }
+
+  // 2) Fetch the encrypted data blob.
+  try{
+    const r = await fetch(ENC_FILE, {cache:"no-store"});
+    if(!r.ok) throw new Error("http "+r.status);
+    ENC_BLOB = await r.json();
+  }catch(e){
+    // Fallback: plaintext clients.json (e.g. local dev before encryption).
+    try{ const r2 = await fetch("clients.json",{cache:"no-store"}); useData(await r2.json()); return; }
+    catch(e2){
+      $("#lock").style.display="none";
+      $("#reader").innerHTML = '<div class="placeholder"><h2>Could not load data</h2><p>Encrypted data ('+ENC_FILE+') failed to load. Serve this over HTTP or view it on the published site.</p></div>';
+      return;
+    }
+  }
+
+  // 3) Try a cached session password, else show the lock screen.
+  const cached = sessionStorage.getItem(SS_PASS);
+  if(cached){
+    try{ useData(await decryptJSON(cached, ENC_BLOB)); return; }
+    catch(e){ sessionStorage.removeItem(SS_PASS); }
+  }
+  showLock();
+}
+
+function showLock(){
+  document.body.classList.add("locked");
+  $("#lock").style.display = "flex";
+  setTimeout(()=>$("#lockInput").focus(), 50);
+}
+
+async function tryUnlock(pass){
+  const btn=$("#lockBtn"), err=$("#lockErr");
+  err.textContent=""; btn.disabled=true; btn.textContent="Unlocking…";
+  try{
+    const obj = await decryptJSON(pass, ENC_BLOB);
+    sessionStorage.setItem(SS_PASS, pass);
+    useData(obj);
+  }catch(e){
+    err.textContent = "Incorrect password. Try again.";
+    $("#lockInput").select();
+  }finally{ btn.disabled=false; btn.textContent="Unlock"; }
+}
+
+function persist(){ try{ sessionStorage.setItem(SS_KEY, JSON.stringify(DATA)); }catch(e){} }
+
+/* ---------- Filtering ---------- */
+function applyFilter(){
+  const q = searchTerm.trim().toLowerCase();
+  filtered = DATA.clients.filter(c=>{
+    if(filterMode==="unity" && c.tier!=="Unity") return false;
+    if(filterMode==="core" && c.tier!=="Core") return false;
+    if(filterMode==="trusted" && c.verificationStatus!=="TRUSTED") return false;
+    if(filterMode==="needs" && c.verificationStatus!=="NEEDS_VERIFICATION") return false;
+    if(q){
+      const hay = (c.name+" "+(c.notes||"")+" "+(c.html||"")+" "+(c.tags||[]).join(" ")).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- Render list ---------- */
+function statusBadge(s){
+  if(s==="TRUSTED") return '<span class="badge ok">Verified</span>';
+  if(s==="NEEDS_VERIFICATION") return '<span class="badge warn">Needs review</span>';
+  return '<span class="badge neutral">Unverified</span>';
+}
+function tierChip(t){
+  if(t==="Unity") return '<span class="tier unity">Unity</span>';
+  if(t==="Core") return '<span class="tier core">Core</span>';
+  return '';
+}
+
+function render(){
+  applyFilter();
+  $("#countPill").textContent = DATA.clients.length + " clients";
+  $("#rcount").textContent = filtered.length + (filtered.length===1?" result":" results");
+  const list = $("#list");
+  list.innerHTML="";
+  if(!filtered.length){ list.appendChild(el("div","empty","No clients match your search.")); }
+  filtered.forEach(c=>{
+    const b = el("button","item"+(c.slug===activeSlug?" active":""));
+    b.innerHTML =
+      '<div class="it-top"><span class="it-name">'+esc(c.name)+'</span>'+tierChip(c.tier)+'</div>'+
+      '<div class="it-sub">'+statusBadge(c.verificationStatus)+
+        (c.board?'<span>· '+esc(c.board)+' board</span>':'')+'</div>'+
+      (c.notes?'<div class="it-notes">'+esc(c.notes)+'</div>':'');
+    b.onclick=()=>{ activeSlug=c.slug; document.body.classList.add("detail"); render(); renderReader(); };
+    list.appendChild(b);
+  });
+  if(!activeSlug && filtered.length && window.innerWidth>820){ /* keep placeholder until user clicks */ }
+}
+
+/* ---------- Render reader ---------- */
+function fmtDate(s){ if(!s) return ""; const d=new Date(s); if(isNaN(d)) return ""; return d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }
+
+function transformBody(html){
+  // Replace auth-gated Guru/Freshservice images with a labeled placeholder.
+  return (html||"").replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, (m,src)=>{
+    if(/^data:/.test(src) || /assets\//.test(src)){ return m; } // keep local/embedded images
+    return '<div class="img-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m21 15-5-5L5 21"/></svg><span>Image stored in Guru — <a href="'+esc(src)+'" target="_blank" rel="noopener">open in Guru</a> (sign-in required)</span></div>';
+  });
+}
+
+function renderReader(){
+  const c = DATA.clients.find(x=>x.slug===activeSlug);
+  const r = $("#reader");
+  if(!c){ r.innerHTML='<div class="placeholder"><h2>Select a client</h2><p>Pick a client from the list to view their profile.</p></div>'; return; }
+  const meta = [];
+  if(c.owner) meta.push('<span class="m"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'+esc(c.owner)+'</span>');
+  if(c.lastModified) meta.push('<span class="m"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Updated '+fmtDate(c.lastModified)+'</span>');
+  const related = (c.otherCardsInBoard||[]).filter(x=>x&&x.title);
+  r.innerHTML =
+    '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to list</button>'+
+    '<div class="editbar edit-only"><span class="grow">Editing is on. Changes save to this browser — click <b>Export JSON</b> and commit the file to publish for the team.</span>'+
+      '<button class="mini" id="editThis">Edit this client</button></div>'+
+    '<article class="card"><div class="card-head">'+
+      '<div class="kicker"><span class="dot"></span>PRMT Client · '+(c.tier?esc(c.tier)+' tier':'Client profile')+'</div>'+
+      '<h1>'+esc(c.name)+'</h1>'+
+      '<div class="head-badges">'+statusBadge(c.verificationStatus)+tierChip(c.tier)+
+        (c.guruUrl?'<a class="open-guru" href="'+esc(c.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
+      (meta.length?'<div class="meta">'+meta.join('')+'</div>':'')+
+      ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
+    '</div>'+
+    '<div class="card-body"><div class="content">'+ transformBody(c.html) +'</div>'+
+      (related.length?'<div class="related"><h4>More in this board</h4><div class="rgrid">'+
+        related.map(x=>'<span class="rpill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/></svg>'+esc(x.title)+'</span>').join('')+
+        '</div></div>':'')+
+    '</div></article>';
+  const et = $("#editThis"); if(et) et.onclick=()=>openEdit(DATA.clients.indexOf(c));
+}
+
+/* ---------- Edit / add ---------- */
+function openEdit(idx){
+  editingIndex = idx;
+  const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",verificationStatus:"NEEDS_VERIFICATION",tags:[],guruUrl:"",notes:"",html:""};
+  $("#modalTitle").textContent = idx>=0 ? "Edit client" : "Add new client";
+  $("#fName").value=c.name||""; $("#fTier").value=c.tier||""; $("#fStatus").value=c.verificationStatus||"NEEDS_VERIFICATION";
+  $("#fTags").value=(c.tags||[]).join(", "); $("#fUrl").value=c.guruUrl||""; $("#fNotes").value=c.notes||"";
+  $("#fHtml").value=c.html||"";
+  $("#fDelete").style.display = idx>=0 ? "" : "none";
+  $("#modalBack").classList.add("show");
+}
+function closeEdit(){ $("#modalBack").classList.remove("show"); }
+
+function saveEdit(){
+  const name = $("#fName").value.trim();
+  if(!name){ toast("Client name is required"); return; }
+  const obj = {
+    name,
+    tier: $("#fTier").value,
+    verificationStatus: $("#fStatus").value,
+    tags: $("#fTags").value.split(",").map(s=>s.trim()).filter(Boolean),
+    guruUrl: $("#fUrl").value.trim(),
+    notes: $("#fNotes").value.trim(),
+    html: $("#fHtml").value,
+  };
+  if(editingIndex>=0){
+    const cur = DATA.clients[editingIndex];
+    Object.assign(cur, obj);
+    activeSlug = cur.slug;
+  }else{
+    obj.slug = uniqueSlug(slugify(name));
+    obj.id = "local-"+Date.now();
+    obj.otherCardsInBoard=[];
+    DATA.clients.push(obj);
+    DATA.clients.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    activeSlug = obj.slug;
+  }
+  persist(); closeEdit(); render(); renderReader(); toast("Saved locally — Export JSON to publish");
+}
+function uniqueSlug(base){let s=base,k=2;const has=x=>DATA.clients.some(c=>c.slug===x);while(has(s)){s=base+"-"+k;k++;}return s;}
+function deleteClient(){
+  if(editingIndex<0) return;
+  const c=DATA.clients[editingIndex];
+  if(!confirm("Delete “"+c.name+"”? This removes it from your local copy. Export JSON to make it permanent.")) return;
+  DATA.clients.splice(editingIndex,1);
+  if(activeSlug===c.slug) activeSlug=null;
+  persist(); closeEdit(); render(); renderReader(); toast("Deleted locally");
+}
+
+async function exportJSON(){
+  const out = {generatedAt: new Date().toISOString().slice(0,10), source: ENC_META.source||"PRMT Client Directory", clients: DATA.clients};
+  const pass = sessionStorage.getItem(SS_PASS);
+  if(!pass){ toast("Unlock the dashboard first, then export"); return; }
+  const enc = await encryptJSON(pass, out);
+  const blob = new Blob([JSON.stringify(enc,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=ENC_FILE; a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Downloaded "+ENC_FILE+" — commit it to the repo to publish");
+}
+
+/* ---------- Wire up ---------- */
+$("#search").addEventListener("input",e=>{searchTerm=e.target.value;render();});
+$("#chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  filterMode=b.dataset.f;render();});
+$("#btnEdit").addEventListener("click",()=>{document.body.classList.toggle("editing");
+  $("#btnEdit").classList.toggle("on");$("#btnEdit").textContent=document.body.classList.contains("editing")?"Editing ✓":"Edit mode";
+  if(activeSlug) renderReader();});
+$("#btnAdd").addEventListener("click",()=>openEdit(-1));
+$("#btnExport").addEventListener("click",exportJSON);
+$("#btnChangePw").addEventListener("click",()=>{
+  const a=prompt("Set a NEW team access password:"); if(!a) return;
+  const b=prompt("Re-enter the new password to confirm:"); if(a!==b){ toast("Passwords didn't match"); return; }
+  if(a.length<8){ toast("Use at least 8 characters"); return; }
+  sessionStorage.setItem(SS_PASS,a);
+  toast("New password set — click Export data, then commit the file to apply it");
+});
+$("#fCancel").addEventListener("click",closeEdit);
+$("#fSave").addEventListener("click",saveEdit);
+$("#fDelete").addEventListener("click",deleteClient);
+$("#modalBack").addEventListener("click",e=>{if(e.target===$("#modalBack"))closeEdit();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeEdit();});
+$("#lockForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#lockInput").value;if(v)tryUnlock(v);});
+
+load();
+</script>
+</body>
+</html>

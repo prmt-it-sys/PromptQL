@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+.claude/
+Icon?
+Icon
+# Plaintext data + dev helpers stay LOCAL ONLY — never publish these:
+clients.json
+build_data.py
+serve.py
