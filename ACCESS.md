@@ -29,31 +29,41 @@ password to decrypt the data in their browser. That's why this repo can safely b
 
 ---
 
-## Update client data
+## Data model
+
+Each client shows every card from its Guru board as an expandable section. Images are
+optimized and **individually AES‑encrypted** as `img/<hash>.enc` files, decrypted in the
+browser only when their card is opened (so a public repo never exposes them, and pages
+load fast). The card bodies + metadata live in the encrypted `clients.enc.json`. Both the
+data and the images are encrypted with the key derived from the team password — they share
+one key, so the salt must stay stable (the app handles this automatically on export).
+
+## Update client text (in‑app)
 
 1. Open the dashboard, unlock it, click **Edit mode**.
-2. **Add client** or open a client → **Edit this client** (name, tier, verification,
-   tags, Guru link, note, and the profile body as HTML).
-3. Click **Export data** → downloads a fresh **encrypted** `clients.enc.json`
-   (re‑encrypted with the current password).
+2. **Add client** or open a client → **Edit this client** (name, tier, tags, Guru link,
+   note, and the profile body as HTML).
+3. Click **Export data** → downloads a re‑encrypted `clients.enc.json` (reusing the same
+   salt, so images keep working).
 4. Replace `clients.enc.json` in this repo with the download and commit + push:
    ```bash
    git add clients.enc.json && git commit -m "Update client data" && git push
    ```
    GitHub Pages redeploys automatically in ~1 minute.
 
+> In‑app edits change **text only**. Adding/removing **images** or **rotating the password**
+> re‑encrypts the image files too, which is a local rebuild (below) — not an in‑app action.
+
 ---
 
-## Rotate the password
+## Rebuild from a Guru export (new images, new cards, or password rotation)
 
-1. Unlock the dashboard with the current password → **Edit mode**.
-2. Click **Change password**, enter the new one twice.
-3. Click **Export data** (re‑encrypts with the new password) → commit the new
-   `clients.enc.json`.
-4. Share the new password with the team. Old password no longer decrypts the new file.
-
-> Forgot the password? Re‑encrypt from the plaintext backup in `PromptQL-source`
-> (open its `clients.json` in a local copy of the dashboard and export with a new password).
+The full dataset (all board cards + encrypted images) is generated from a Guru **Export
+Collection** download. The build script and the plaintext data live in the **private** repo
+`watheeq-prmt/PromptQL-source` (kept private on purpose — the build inputs contain client
+names and notes in the clear). To refresh content or rotate the password: re‑export the
+Clients collection from Guru, run the build there with the desired password, then commit the
+regenerated `clients.enc.json` + `img/` to this public repo. GitHub Pages redeploys in ~1 min.
 
 ---
 
