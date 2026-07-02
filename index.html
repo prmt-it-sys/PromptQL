@@ -782,12 +782,27 @@ function renderGuruCard(){
 }
 
 /* ---------- Inline editor ---------- */
+function cleanEditableHTML(node){
+  // Serialize a CLEANED clone: hydrateImage() rewrites each <img data-enc> to a
+  // transient blob: src (+data-loaded). Saving that verbatim bakes a dead blob URL
+  // into card.html, which transformBody() then renders as the "Image stored in Guru"
+  // placeholder on the next view. Strip the transient bits so images persist as the
+  // clean <img data-enc="..."> that re-hydrates correctly.
+  const clone = node.cloneNode(true);
+  clone.querySelectorAll("img[data-enc]").forEach(img=>{
+    img.removeAttribute("src");
+    img.removeAttribute("data-loaded");
+    img.classList.remove("img-ok");
+    if(!img.getAttribute("class")) img.removeAttribute("class");
+  });
+  return clone.innerHTML;
+}
 function commitCardFromDOM(cur){
   const t=$("#etTitle"), c=$("#etContent");
   if(!t||!c) return;
   const card = cur.cards[guruCardIdx] || {};   // preserve other fields (e.g. verified)
   card.title = t.value.trim() || "Untitled card";
-  card.html = c.innerHTML;
+  card.html = cleanEditableHTML(c);
   cur.cards[guruCardIdx] = card;
 }
 function commitCurrent(){   // save in-progress inline edits before navigating away
