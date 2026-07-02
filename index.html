@@ -89,6 +89,35 @@ a:hover{text-decoration:underline}
 .chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 .toolbar .rcount{margin-left:auto;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
 
+/* view toggle (topbar segmented control) */
+.viewtoggle{display:inline-flex;background:var(--brand-navy-2);border:1px solid var(--brand-line);border-radius:9px;padding:3px;gap:2px}
+.vt{font-size:12.5px;font-weight:600;color:var(--brand-ink-soft);background:transparent;border:none;cursor:pointer;
+  padding:6px 12px;border-radius:6px;font-family:inherit;transition:.12s}
+.vt:hover{color:#fff}
+.vt.active{background:var(--brand-accent);color:#fff}
+
+/* two toolbar modes */
+.tbmode{display:none;align-items:center;gap:12px;flex:1;flex-wrap:wrap}
+body.view-directory #tbDirectory{display:flex}
+body.view-guru #tbGuru{display:flex}
+.crumb{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-3);font-weight:500}
+.crumb-dot{width:9px;height:9px;border-radius:50%;background:var(--brand-accent-2);display:inline-block}
+.crumb .sep{color:var(--ink-3)}
+#crumbClient{color:var(--ink);font-weight:700}
+.client-select{font-size:15px;font-weight:700;color:var(--ink);border:1px solid var(--line);border-radius:9px;
+  padding:8px 34px 8px 12px;background:#fff;cursor:pointer;max-width:340px;appearance:none;font-family:inherit;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center}
+.client-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
+.summary{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+/* per-client card search (sidebar, guru mode only) */
+.guru-search{display:none;padding:10px 10px 4px}
+body.view-guru .guru-search{display:block}
+.guru-search input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;outline:none;background:#fbfcfe}
+.guru-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
+.item .it-cardtitle{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:4px}
+
 /* ---------- Body: sidebar + reader ---------- */
 .body{flex:1;display:flex;min-height:0}
 .sidebar{width:340px;min-width:270px;background:#fbfcfe;border-right:1px solid var(--line);
@@ -286,6 +315,10 @@ body.locked .app{filter:blur(6px);pointer-events:none}
       <span class="app-name">Client Directory</span>
     </div>
     <span class="spacer"></span>
+    <div class="viewtoggle" id="viewToggle">
+      <button class="vt active" data-view="directory">Directory</button>
+      <button class="vt" data-view="guru">Guru view</button>
+    </div>
     <span class="count-pill" id="countPill">— clients</span>
     <button class="tbtn edit-only primary" id="btnAdd">+ Add client</button>
     <button class="tbtn edit-only" id="btnExport">Export data</button>
@@ -294,21 +327,33 @@ body.locked .app{filter:blur(6px);pointer-events:none}
 
   <!-- Toolbar -->
   <div class="toolbar">
-    <div class="search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="text" placeholder="Search clients, contacts, addresses…" autocomplete="off" />
+    <!-- Directory mode: global search + tier chips -->
+    <div class="tbmode" id="tbDirectory">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" type="text" placeholder="Search clients, contacts, addresses…" autocomplete="off" />
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip active" data-f="all">All</button>
+        <button class="chip" data-f="unity">Unity</button>
+        <button class="chip" data-f="core">Core</button>
+      </div>
+      <span class="rcount" id="rcount"></span>
     </div>
-    <div class="chips" id="chips">
-      <button class="chip active" data-f="all">All</button>
-      <button class="chip" data-f="unity">Unity</button>
-      <button class="chip" data-f="core">Core</button>
+    <!-- Guru mode: breadcrumb + client dropdown + totals -->
+    <div class="tbmode" id="tbGuru">
+      <div class="crumb"><span class="crumb-dot"></span>Clients <span class="sep">/</span> <span id="crumbClient">—</span></div>
+      <select id="clientSelect" class="client-select" aria-label="Select client"></select>
+      <span class="summary" id="guruSummary"></span>
     </div>
-    <span class="rcount" id="rcount"></span>
   </div>
 
   <!-- Body -->
   <div class="body">
     <aside class="sidebar">
+      <div class="guru-search" id="guruSearch">
+        <input id="cardSearch" type="text" placeholder="Search cards…" autocomplete="off" />
+      </div>
       <div class="list" id="list"></div>
     </aside>
     <main class="reader" id="reader">
@@ -361,6 +406,10 @@ let activeSlug = null;
 let filterMode = "all";
 let searchTerm = "";
 let editingIndex = -1; // -1 = new
+let viewMode = sessionStorage.getItem("prmt_view") || "directory"; // 'directory' | 'guru'
+let guruSlug = null;   // selected client in Guru view
+let guruCardIdx = 0;   // selected card index in Guru view
+let cardSearch = "";   // per-client card search term
 
 /* ---------- Crypto (AES-256-GCM + PBKDF2-SHA256) ---------- */
 const _b64 = buf => { const b=new Uint8Array(buf); let s=""; const CH=0x8000;
@@ -398,7 +447,7 @@ async function hydrateImage(img){
   try{
     let url = _imgCache.get(path);
     if(!url){
-      const buf = new Uint8Array(await (await fetch(path,{cache:"force-cache"})).arrayBuffer());
+      const buf = new Uint8Array(await (await fetch(path)).arrayBuffer());
       const pt  = await crypto.subtle.decrypt({name:"AES-GCM", iv:buf.slice(0,12)}, CRYPTO_KEY, buf.slice(12));
       url = URL.createObjectURL(new Blob([pt], {type:"image/jpeg"}));
       _imgCache.set(path, url);
@@ -428,7 +477,7 @@ function useData(obj){
   ENC_META = {source: DATA.source || "PRMT Client Directory"};
   document.body.classList.remove("locked");
   $("#lock").style.display = "none";
-  render();
+  setView(viewMode);   // render according to the active view (directory | guru)
 }
 
 async function load(){
@@ -503,6 +552,11 @@ function tierChip(t){
   if(t==="Core") return '<span class="tier core">Core</span>';
   return '';
 }
+function vbadge(status){   // client-level verification badge
+  if(status==="TRUSTED") return '<span class="badge ok">Verified</span>';
+  if(status==="NEEDS_VERIFICATION") return '<span class="badge warn">Needs review</span>';
+  return '';
+}
 
 function render(){
   applyFilter();
@@ -515,7 +569,8 @@ function render(){
     const b = el("button","item"+(c.slug===activeSlug?" active":""));
     b.innerHTML =
       '<div class="it-top"><span class="it-name">'+esc(c.name)+'</span>'+tierChip(c.tier)+'</div>'+
-      (c.board?'<div class="it-sub"><span>'+esc(c.board)+' board</span></div>':'')+
+      '<div class="it-sub">'+vbadge(c.verificationStatus)+
+        '<span>'+(c.cards?c.cards.length+' card'+(c.cards.length===1?'':'s'):'')+'</span></div>'+
       (c.notes?'<div class="it-notes">'+esc(c.notes)+'</div>':'');
     b.onclick=()=>{ activeSlug=c.slug; document.body.classList.add("detail"); render(); renderReader(); };
     list.appendChild(b);
@@ -561,7 +616,7 @@ function renderReader(){
       '<div class="kicker"><span class="dot"></span>PRMT Client · '+(c.tier?esc(c.tier)+' tier':'Client profile')+
         (single?'':' · '+cards.length+' cards')+'</div>'+
       '<h1>'+esc(c.name)+'</h1>'+
-      '<div class="head-badges">'+tierChip(c.tier)+
+      '<div class="head-badges">'+vbadge(c.verificationStatus)+tierChip(c.tier)+
         (c.guruUrl?'<a class="open-guru" href="'+esc(c.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
       (meta.length?'<div class="meta">'+meta.join('')+'</div>':'')+
       ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
@@ -575,6 +630,69 @@ function renderReader(){
   if(r.querySelector('.sect')) r.querySelectorAll('.sect.open').forEach(hydrateWithin);
   else hydrateWithin(r);
   const et = $("#editThis"); if(et) et.onclick=()=>openEdit(DATA.clients.indexOf(c));
+}
+
+/* ---------- View switching ---------- */
+function setView(mode){
+  viewMode = mode;
+  sessionStorage.setItem("prmt_view", mode);
+  document.body.classList.toggle("view-guru", mode==="guru");
+  document.body.classList.toggle("view-directory", mode!=="guru");
+  document.querySelectorAll(".vt").forEach(b=>b.classList.toggle("active", b.dataset.view===mode));
+  document.body.classList.remove("detail");
+  if(mode==="guru"){ renderGuru(); } else { render(); renderReader(); }
+}
+
+/* ---------- Guru view ---------- */
+const _txt = html => { const d=document.createElement("div"); d.innerHTML=(html||"").replace(/<img[^>]*>/g," "); return (d.textContent||"").replace(/\s+/g," ").trim(); };
+
+function renderGuru(){
+  const list = DATA.clients;
+  const total = list.reduce((n,c)=>n+(c.cards?c.cards.length:0),0);
+  // populate dropdown
+  const sel = $("#clientSelect");
+  if(!guruSlug || !list.some(c=>c.slug===guruSlug)) guruSlug = list.length?list[0].slug:null;
+  sel.innerHTML = list.map(c=>'<option value="'+c.slug+'"'+(c.slug===guruSlug?' selected':'')+'>'+esc(c.name)+' ('+(c.cards?c.cards.length:0)+')</option>').join("");
+  const cur = list.find(c=>c.slug===guruSlug);
+  $("#crumbClient").textContent = cur?cur.name:"—";
+  $("#guruSummary").textContent = (cur?cur.cards.length+" cards · ":"") + list.length + " clients · " + total + " cards total";
+  renderGuruSidebar();
+  renderGuruCard();
+}
+
+function renderGuruSidebar(){
+  const cur = DATA.clients.find(c=>c.slug===guruSlug);
+  const list = $("#list"); list.innerHTML="";
+  if(!cur){ list.appendChild(el("div","empty","No client selected.")); return; }
+  const q = cardSearch.trim().toLowerCase();
+  cur.cards.forEach((card,i)=>{
+    if(q && !((card.title+" "+_txt(card.html)).toLowerCase().includes(q))) return;
+    const b = el("button","item"+(i===guruCardIdx?" active":""));
+    b.innerHTML =
+      '<div class="it-cardtitle">'+esc(card.title||("Card "+(i+1)))+'</div>'+
+      '<div class="it-notes">'+esc(_txt(card.html).slice(0,110))+'</div>'+
+      (vbadge(cur.verificationStatus)?'<div class="it-sub" style="margin-top:6px">'+vbadge(cur.verificationStatus)+'</div>':'');
+    b.onclick=()=>{ guruCardIdx=i; document.body.classList.add("detail"); renderGuruSidebar(); renderGuruCard(); };
+    list.appendChild(b);
+  });
+  if(!list.children.length) list.appendChild(el("div","empty","No cards match your search."));
+}
+
+function renderGuruCard(){
+  const cur = DATA.clients.find(c=>c.slug===guruSlug);
+  const r = $("#reader");
+  if(!cur){ r.innerHTML='<div class="placeholder"><h2>Select a client</h2></div>'; return; }
+  const card = cur.cards[guruCardIdx] || cur.cards[0];
+  r.innerHTML =
+    '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
+    '<article class="card"><div class="card-head">'+
+      '<div class="kicker"><span class="dot"></span>'+esc(cur.name)+(cur.tier?' · '+esc(cur.tier)+' tier':'')+'</div>'+
+      '<h1>'+esc(card.title||cur.name)+'</h1>'+
+      '<div class="head-badges">'+vbadge(cur.verificationStatus)+tierChip(cur.tier)+
+        (cur.guruUrl?'<a class="open-guru" href="'+esc(cur.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
+    '</div>'+
+    '<div class="card-body"><div class="content">'+ transformBody(card.html) +'</div></div></article>';
+  hydrateWithin(r);
 }
 
 /* ---------- Edit / add ---------- */
@@ -655,6 +773,9 @@ $("#fDelete").addEventListener("click",deleteClient);
 $("#modalBack").addEventListener("click",e=>{if(e.target===$("#modalBack"))closeEdit();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeEdit();});
 $("#lockForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#lockInput").value;if(v)tryUnlock(v);});
+$("#viewToggle").addEventListener("click",e=>{const b=e.target.closest(".vt");if(b)setView(b.dataset.view);});
+$("#clientSelect").addEventListener("change",e=>{guruSlug=e.target.value;guruCardIdx=0;cardSearch="";$("#cardSearch").value="";renderGuru();});
+$("#cardSearch").addEventListener("input",e=>{cardSearch=e.target.value;renderGuruSidebar();});
 
 load();
 </script>
