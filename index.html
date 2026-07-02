@@ -406,6 +406,9 @@ const SS_KEY  = "prmt_clients_v1";   // working edits (session only)
 const SS_PASS = "prmt_pass_v1";      // access password (session only)
 const ENC_FILE = "clients.enc.json"; // encrypted data published to the repo
 const KDF_ITER = 310000;             // PBKDF2 iterations (OWASP-tier)
+const PUBLISH_HOOK = "https://data.prompt.ql.app/prmt/promptql-v2/hooks/room/46a01340-3031-4c0e-afe3-3bb4dc08b1bf/send_message"; // PromptQL room webhook (publish bridge)
+const PUBLISH_PAT  = "pql_ut_JgdGg8teg7CB3SPqam6jbjFf4XmAATjTH9u043Jb3Xg"; // room-scoped PAT — can ONLY post to the client-info room; safe to be public
+const PUBLISH_PROMPT = "Run the publish_prmt_directory saved program to commit the attached clients.enc.json (hook_payload artifact) to prmt-it-sys/PromptQL. Do not decrypt it.";
 let DATA = {clients:[]};
 let ENC_META = {source:"PRMT Client Directory"}; // non-secret metadata for re-export
 let ENC_SALT = null; // base64 salt of the published blob — reused on export to keep the key stable
@@ -889,10 +892,28 @@ async function exportJSON(){
   if(!pass){ toast("Unlock the dashboard first, then publish"); return; }
   const salt = ENC_SALT || sessionStorage.getItem("prmt_salt");
   const enc = await encryptJSON(pass, out, salt);
-  const blob = new Blob([JSON.stringify(enc,null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=ENC_FILE; a.click();
-  URL.revokeObjectURL(a.href);
-  toast("Downloaded "+ENC_FILE+" — drop it in the repo (or run publish) to go live");
+  const payload = JSON.stringify(enc);
+  const btn = document.getElementById("btnExport");
+  const prev = btn ? btn.textContent : null;
+  if(btn){ btn.disabled = true; btn.textContent = "Publishing\u2026"; }
+  try{
+    const url = PUBLISH_HOOK + "?prompt=" + encodeURIComponent(PUBLISH_PROMPT);
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {"Authorization": "pat " + PUBLISH_PAT, "Content-Type": "application/json"},
+      body: payload
+    });
+    if(!resp.ok) throw new Error("HTTP " + resp.status);
+    toast("Published \u2713 \u2014 PromptQL is committing the update to the live site.");
+  }catch(e){
+    // Fallback: download the encrypted file so it can be committed manually.
+    const blob = new Blob([JSON.stringify(enc,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=ENC_FILE; a.click();
+    URL.revokeObjectURL(a.href);
+    toast("Auto-publish failed (" + e.message + "). Downloaded " + ENC_FILE + " \u2014 send it to PromptQL to publish.");
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = prev; }
+  }
 }
 
 /* ---------- Wire up ---------- */
