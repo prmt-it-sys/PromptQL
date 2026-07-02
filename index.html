@@ -246,6 +246,26 @@ body:not(.editing) .edit-only{display:none !important}
   opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ---------- Inline card editor ---------- */
+.cardtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.cardtools .grow{flex:1}
+.et-title{width:100%;font-size:22px;font-weight:800;color:var(--ink);border:1px dashed var(--line);
+  border-radius:8px;padding:8px 10px;margin-bottom:10px;font-family:inherit;outline:none}
+.et-title:focus{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px rgba(0,43,255,.12)}
+.fmtbar{display:flex;gap:3px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);
+  border-radius:9px;padding:6px;margin-bottom:10px;position:sticky;top:8px;z-index:6;box-shadow:var(--shadow)}
+.fmtbtn{min-width:32px;height:30px;padding:0 8px;border:1px solid transparent;background:transparent;border-radius:6px;
+  cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2);font-family:inherit;display:inline-flex;align-items:center;justify-content:center}
+.fmtbtn:hover{background:#eef1f6;color:var(--ink)}
+.fmtbtn.i{font-style:italic}.fmtbtn.u{text-decoration:underline}
+.fmtsep{width:1px;height:20px;background:var(--line);margin:0 3px}
+.content[contenteditable="true"]{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px;
+  padding:12px 14px;min-height:140px;background:#fff}
+.content[contenteditable="true"]:empty:before{content:"Start typing…";color:var(--ink-3)}
+.et-hint{font-size:12px;color:var(--ink-3);margin:2px 0 12px}
+.editing .item{position:relative}
+body:not(.editing) .cardtools{display:none}
+
 /* ---------- Mobile ---------- */
 .backbtn{display:none;background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;
   cursor:pointer;padding:0 0 12px;align-items:center;gap:6px}
@@ -312,7 +332,7 @@ body.locked .app{filter:blur(6px);pointer-events:none}
     <span class="pqltag">PQL</span>
     <span class="count-pill" id="countPill">— clients</span>
     <button class="tbtn edit-only primary" id="btnAdd">+ Add client</button>
-    <button class="tbtn edit-only" id="btnExport">Export data</button>
+    <button class="tbtn edit-only" id="btnExport">⬆ Publish changes</button>
     <button class="tbtn" id="btnEdit">Edit mode</button>
   </header>
 
@@ -345,19 +365,21 @@ body.locked .app{filter:blur(6px);pointer-events:none}
 <!-- Edit modal -->
 <div class="modal-back" id="modalBack">
   <div class="modal">
-    <h3 id="modalTitle">Edit client</h3>
+    <h3 id="modalTitle">Client settings</h3>
     <div class="mbody">
       <div class="field"><label>Client name</label><input id="fName" type="text" /></div>
       <div class="row2">
         <div class="field"><label>Tier</label>
           <select id="fTier"><option value="">—</option><option>Unity</option><option>Core</option></select>
         </div>
+        <div class="field"><label>Verification</label>
+          <select id="fStatus"><option value="">—</option><option value="TRUSTED">Verified</option><option value="NEEDS_VERIFICATION">Needs review</option></select>
+        </div>
       </div>
       <div class="field"><label>Tags <span class="hint">(comma separated)</span></label><input id="fTags" type="text" /></div>
       <div class="field"><label>Guru URL</label><input id="fUrl" type="text" placeholder="https://app.getguru.com/card/…" /></div>
-      <div class="field"><label>Summary note</label><input id="fNotes" type="text" /></div>
-      <div class="field"><label>Profile body <span class="hint">(HTML — use &lt;h1&gt; section headings, &lt;ul&gt;&lt;li&gt; lists, &lt;p&gt; paragraphs)</span></label>
-        <textarea id="fHtml"></textarea></div>
+      <div class="field"><label>Summary note <span class="hint">(shown under the client in lists)</span></label><input id="fNotes" type="text" /></div>
+      <div class="et-hint" style="margin:0">Card content is edited directly on each card — turn on Edit mode and type on the card face.</div>
     </div>
     <div class="modal-foot">
       <button class="mini danger" id="fDelete">Delete client</button>
@@ -650,7 +672,7 @@ function renderGuruSidebar(){
       '<div class="it-cardtitle">'+esc(card.title||("Card "+(i+1)))+'</div>'+
       '<div class="it-notes">'+esc(_txt(card.html).slice(0,110))+'</div>'+
       (vbadge(cur.verificationStatus)?'<div class="it-sub" style="margin-top:6px">'+vbadge(cur.verificationStatus)+'</div>':'');
-    b.onclick=()=>{ guruCardIdx=i; document.body.classList.add("detail"); renderGuruSidebar(); renderGuruCard(); };
+    b.onclick=()=>{ commitCurrent(); guruCardIdx=i; document.body.classList.add("detail"); renderGuruSidebar(); renderGuruCard(); };
     list.appendChild(b);
   });
   if(!list.children.length) list.appendChild(el("div","empty","No cards match your search."));
@@ -660,30 +682,131 @@ function renderGuruCard(){
   const cur = DATA.clients.find(c=>c.slug===guruSlug);
   const r = $("#reader");
   if(!cur){ r.innerHTML='<div class="placeholder"><h2>Select a client</h2></div>'; return; }
-  const card = cur.cards[guruCardIdx] || cur.cards[0];
-  r.innerHTML =
-    '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
-    '<div class="editbar edit-only"><span class="grow">Editing is on. Changes save to this browser — click <b>Export data</b> and commit to publish. (Edits the client\'s primary card.)</span>'+
-      '<button class="mini" id="editThis">Edit this client</button></div>'+
+  if(!cur.cards.length) cur.cards.push({title:"Basic Client Info", html:""});
+  if(guruCardIdx>=cur.cards.length) guruCardIdx=0;
+  const card = cur.cards[guruCardIdx];
+  const editing = document.body.classList.contains("editing");
+
+  const head =
     '<article class="card"><div class="card-head">'+
       '<div class="kicker"><span class="dot"></span>'+esc(cur.name)+(cur.tier?' · '+esc(cur.tier)+' tier':'')+'</div>'+
-      '<h1>'+esc(card.title||cur.name)+'</h1>'+
+      (editing ? '<input class="et-title" id="etTitle" value="'+esc(card.title||"")+'" placeholder="Card title" />'
+               : '<h1>'+esc(card.title||cur.name)+'</h1>')+
       '<div class="head-badges">'+vbadge(cur.verificationStatus)+tierChip(cur.tier)+
         (cur.guruUrl?'<a class="open-guru" href="'+esc(cur.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
-    '</div>'+
-    '<div class="card-body"><div class="content">'+ transformBody(card.html) +'</div></div></article>';
-  hydrateWithin(r);
-  const et = $("#editThis"); if(et) et.onclick=()=>openEdit(DATA.clients.indexOf(cur));
+    '</div>';
+
+  if(editing){
+    r.innerHTML =
+      '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
+      '<div class="cardtools">'+
+        '<button class="mini go" id="saveCard">✓ Save card</button>'+
+        '<button class="mini" id="addCard">+ Add card</button>'+
+        '<button class="mini" id="moveUp" title="Move up">↑</button>'+
+        '<button class="mini" id="moveDn" title="Move down">↓</button>'+
+        '<button class="mini danger" id="delCard">Delete card</button>'+
+        '<span class="grow"></span>'+
+        '<button class="mini" id="clientSettings">Client settings</button>'+
+      '</div>'+
+      head+
+      '<div class="card-body">'+
+        '<div class="fmtbar" id="fmtbar">'+
+          '<button class="fmtbtn" data-cmd="bold" title="Bold">B</button>'+
+          '<button class="fmtbtn i" data-cmd="italic" title="Italic">I</button>'+
+          '<button class="fmtbtn u" data-cmd="underline" title="Underline">U</button>'+
+          '<span class="fmtsep"></span>'+
+          '<button class="fmtbtn" data-cmd="h1" title="Heading">H</button>'+
+          '<button class="fmtbtn" data-cmd="insertUnorderedList" title="Bulleted list">•</button>'+
+          '<button class="fmtbtn" data-cmd="insertOrderedList" title="Numbered list">1.</button>'+
+          '<span class="fmtsep"></span>'+
+          '<button class="fmtbtn" data-cmd="createLink" title="Add link">🔗</button>'+
+          '<button class="fmtbtn" data-cmd="image" title="Insert image">🖼</button>'+
+          '<button class="fmtbtn" data-cmd="removeFormat" title="Clear formatting">⌫</button>'+
+        '</div>'+
+        '<div class="et-hint">Editing “'+esc(card.title||"card")+'” · card '+(guruCardIdx+1)+' of '+cur.cards.length+'. Changes save to your browser; click <b>Publish</b> (top right) when ready to push live.</div>'+
+        '<div class="content" contenteditable="true" id="etContent">'+ transformBody(card.html) +'</div>'+
+      '</div></article>';
+    hydrateWithin(r);
+    wireEditor(cur);
+  } else {
+    r.innerHTML =
+      '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
+      head+
+      '<div class="card-body"><div class="content">'+ transformBody(card.html) +'</div></div></article>';
+    hydrateWithin(r);
+  }
+}
+
+/* ---------- Inline editor ---------- */
+function commitCardFromDOM(cur){
+  const t=$("#etTitle"), c=$("#etContent");
+  if(!t||!c) return;
+  cur.cards[guruCardIdx] = {title: t.value.trim() || "Untitled card", html: c.innerHTML};
+}
+function commitCurrent(){   // save in-progress inline edits before navigating away
+  if(!document.body.classList.contains("editing")) return;
+  const cur=DATA.clients.find(c=>c.slug===guruSlug);
+  if(cur){ commitCardFromDOM(cur); persist(); }
+}
+function wireEditor(cur){
+  // formatting toolbar
+  $("#fmtbar").addEventListener("mousedown", e=>{
+    const b=e.target.closest(".fmtbtn"); if(!b) return;
+    e.preventDefault(); // keep selection in the editable
+    const cmd=b.dataset.cmd;
+    const ed=$("#etContent"); ed.focus();
+    if(cmd==="h1"){ document.execCommand("formatBlock", false, "H1"); }
+    else if(cmd==="createLink"){ const u=prompt("Link URL:","https://"); if(u) document.execCommand("createLink", false, u); }
+    else if(cmd==="image"){ pickImage(); }
+    else { document.execCommand(cmd, false, null); }
+  });
+  $("#saveCard").onclick=()=>{ commitCardFromDOM(cur); persist(); toast("Card saved locally — Publish to push live"); renderGuruSidebar(); };
+  $("#addCard").onclick=()=>{
+    commitCardFromDOM(cur);
+    cur.cards.splice(guruCardIdx+1, 0, {title:"New card", html:""});
+    guruCardIdx++; persist(); renderGuruSidebar(); renderGuruCard();
+    setTimeout(()=>{ const t=$("#etTitle"); if(t){t.focus();t.select();} }, 30);
+  };
+  $("#delCard").onclick=()=>{
+    if(cur.cards.length<=1){ toast("A client needs at least one card"); return; }
+    if(!confirm("Delete card “"+(cur.cards[guruCardIdx].title||"")+"”?")) return;
+    cur.cards.splice(guruCardIdx,1);
+    if(guruCardIdx>=cur.cards.length) guruCardIdx=cur.cards.length-1;
+    persist(); renderGuruSidebar(); renderGuruCard(); toast("Card deleted locally");
+  };
+  $("#moveUp").onclick=()=>moveCard(cur,-1);
+  $("#moveDn").onclick=()=>moveCard(cur, 1);
+  $("#clientSettings").onclick=()=>{ commitCardFromDOM(cur); openEdit(DATA.clients.indexOf(cur)); };
+}
+function moveCard(cur, dir){
+  commitCardFromDOM(cur);
+  const j=guruCardIdx+dir;
+  if(j<0||j>=cur.cards.length) return;
+  const t=cur.cards[guruCardIdx]; cur.cards[guruCardIdx]=cur.cards[j]; cur.cards[j]=t;
+  guruCardIdx=j; persist(); renderGuruSidebar(); renderGuruCard();
+}
+let _imgInput=null;
+function pickImage(){
+  if(!_imgInput){
+    _imgInput=document.createElement("input"); _imgInput.type="file"; _imgInput.accept="image/*"; _imgInput.style.display="none";
+    document.body.appendChild(_imgInput);
+    _imgInput.addEventListener("change", ()=>{
+      const f=_imgInput.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{ const ed=$("#etContent"); if(ed){ ed.focus(); document.execCommand("insertHTML", false, '<img src="'+rd.result+'" style="max-width:100%">'); } };
+      rd.readAsDataURL(f); _imgInput.value="";
+    });
+  }
+  _imgInput.click();
 }
 
 /* ---------- Edit / add ---------- */
 function openEdit(idx){
   editingIndex = idx;
-  const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",tags:[],guruUrl:"",notes:"",html:""};
-  $("#modalTitle").textContent = idx>=0 ? "Edit client" : "Add new client";
-  $("#fName").value=c.name||""; $("#fTier").value=c.tier||"";
+  const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",tags:[],guruUrl:"",notes:"",verificationStatus:""};
+  $("#modalTitle").textContent = idx>=0 ? "Client settings" : "Add new client";
+  $("#fName").value=c.name||""; $("#fTier").value=c.tier||""; $("#fStatus").value=c.verificationStatus||"";
   $("#fTags").value=(c.tags||[]).join(", "); $("#fUrl").value=c.guruUrl||""; $("#fNotes").value=c.notes||"";
-  $("#fHtml").value = (c.cards && c.cards.length) ? (c.cards[0].html||"") : (c.html||"");
   $("#fDelete").style.display = idx>=0 ? "" : "none";
   $("#modalBack").classList.add("show");
 }
@@ -692,29 +815,26 @@ function closeEdit(){ $("#modalBack").classList.remove("show"); }
 function saveEdit(){
   const name = $("#fName").value.trim();
   if(!name){ toast("Client name is required"); return; }
-  const body = $("#fHtml").value;
   const obj = {
     name,
     tier: $("#fTier").value,
+    verificationStatus: $("#fStatus").value || null,
     tags: $("#fTags").value.split(",").map(s=>s.trim()).filter(Boolean),
     guruUrl: $("#fUrl").value.trim(),
     notes: $("#fNotes").value.trim(),
   };
   if(editingIndex>=0){
-    const cur = DATA.clients[editingIndex];
-    Object.assign(cur, obj);
-    // write the body back into the primary card (preserving other board cards) or legacy html
-    if(cur.cards && cur.cards.length){ cur.cards[0].html = body; } else { cur.html = body; }
-    guruSlug = cur.slug;
+    Object.assign(DATA.clients[editingIndex], obj);   // metadata only; cards untouched
+    guruSlug = DATA.clients[editingIndex].slug;
   }else{
     obj.slug = uniqueSlug(slugify(name));
     obj.id = "local-"+Date.now();
-    obj.cards = [{title:"Basic Client Info", html: body, guruUrl: obj.guruUrl}];
+    obj.cards = [{title:"Basic Client Info", html:""}];
     DATA.clients.push(obj);
     DATA.clients.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     guruSlug = obj.slug; guruCardIdx = 0;
   }
-  persist(); closeEdit(); renderGuru(); toast("Saved locally — Export data to publish");
+  persist(); closeEdit(); renderGuru(); toast("Saved locally — Publish to push live");
 }
 function uniqueSlug(base){let s=base,k=2;const has=x=>DATA.clients.some(c=>c.slug===x);while(has(s)){s=base+"-"+k;k++;}return s;}
 function deleteClient(){
@@ -727,20 +847,23 @@ function deleteClient(){
 }
 
 async function exportJSON(){
+  commitCurrent();  // fold in any in-progress inline edit
   const out = {generatedAt: new Date().toISOString().slice(0,10), source: ENC_META.source||"PRMT Client Directory", clients: DATA.clients};
   const pass = sessionStorage.getItem(SS_PASS);
-  if(!pass){ toast("Unlock the dashboard first, then export"); return; }
+  if(!pass){ toast("Unlock the dashboard first, then publish"); return; }
   const salt = ENC_SALT || sessionStorage.getItem("prmt_salt");
   const enc = await encryptJSON(pass, out, salt);
   const blob = new Blob([JSON.stringify(enc,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=ENC_FILE; a.click();
   URL.revokeObjectURL(a.href);
-  toast("Downloaded "+ENC_FILE+" — commit it to the repo to publish");
+  toast("Downloaded "+ENC_FILE+" — drop it in the repo (or run publish) to go live");
 }
 
 /* ---------- Wire up ---------- */
-$("#btnEdit").addEventListener("click",()=>{document.body.classList.toggle("editing");
-  $("#btnEdit").classList.toggle("on");$("#btnEdit").textContent=document.body.classList.contains("editing")?"Editing ✓":"Edit mode";
+$("#btnEdit").addEventListener("click",()=>{
+  commitCurrent();  // save any in-progress edits when leaving edit mode
+  document.body.classList.toggle("editing");
+  $("#btnEdit").classList.toggle("on");$("#btnEdit").textContent=document.body.classList.contains("editing")?"Done editing ✓":"Edit mode";
   renderGuruCard();});
 $("#btnAdd").addEventListener("click",()=>openEdit(-1));
 $("#btnExport").addEventListener("click",exportJSON);
@@ -750,7 +873,7 @@ $("#fDelete").addEventListener("click",deleteClient);
 $("#modalBack").addEventListener("click",e=>{if(e.target===$("#modalBack"))closeEdit();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeEdit();});
 $("#lockForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#lockInput").value;if(v)tryUnlock(v);});
-$("#clientSelect").addEventListener("change",e=>{guruSlug=e.target.value;guruCardIdx=0;cardSearch="";$("#cardSearch").value="";renderGuru();});
+$("#clientSelect").addEventListener("change",e=>{commitCurrent();guruSlug=e.target.value;guruCardIdx=0;cardSearch="";$("#cardSearch").value="";renderGuru();});
 $("#cardSearch").addEventListener("input",e=>{cardSearch=e.target.value;renderGuruSidebar();});
 
 load();

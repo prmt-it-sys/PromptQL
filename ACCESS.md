@@ -38,21 +38,27 @@ load fast). The card bodies + metadata live in the encrypted `clients.enc.json`.
 data and the images are encrypted with the key derived from the team password — they share
 one key, so the salt must stay stable (the app handles this automatically on export).
 
-## Update client text (in‑app)
+## Edit content (in‑app, inline)
 
 1. Open the dashboard, unlock it, click **Edit mode**.
-2. **Add client** or open a client → **Edit this client** (name, tier, tags, Guru link,
-   note, and the profile body as HTML).
-3. Click **Export data** → downloads a re‑encrypted `clients.enc.json` (reusing the same
-   salt, so images keep working).
-4. Replace `clients.enc.json` in this repo with the download and commit + push:
+2. Pick a client from the dropdown, click a card in the sidebar — then **edit right on the
+   card**: type in the title and body, use the formatting toolbar (bold, italic, underline,
+   heading, bullet/numbered lists, link, insert image). Use **Save card**, **+ Add card**,
+   the ↑/↓ arrows to reorder, or **Delete card**. **Client settings** edits name / tier /
+   verification / tags / Guru link / note. Edits auto‑save to your browser as you move around.
+3. Click **⬆ Publish changes** (top right) → downloads a re‑encrypted `clients.enc.json`
+   (same salt, so images keep working).
+4. Publish it live — easiest is the helper script (from a terminal in this folder):
    ```bash
-   git add clients.enc.json && git commit -m "Update client data" && git push
+   ./publish.sh            # grabs ~/Downloads/clients.enc.json, commits & pushes
    ```
-   GitHub Pages redeploys automatically in ~1 minute.
+   …or do it by hand: `git add clients.enc.json && git commit -m "Update" && git push`.
+   GitHub Pages redeploys in ~1 minute. (Requires the `prmt-it-sys` GitHub account active:
+   `gh auth switch --user prmt-it-sys`.)
 
-> In‑app edits change **text only**. Adding/removing **images** or **rotating the password**
-> re‑encrypts the image files too, which is a local rebuild (below) — not an in‑app action.
+> Inserting an image in‑app embeds it inside the encrypted data (fine for the occasional
+> screenshot). A bulk refresh of content/images from Guru, or **rotating the password**, is a
+> local rebuild (below).
 
 ---
 
