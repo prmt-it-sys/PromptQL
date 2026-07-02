@@ -89,17 +89,12 @@ a:hover{text-decoration:underline}
 .chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 .toolbar .rcount{margin-left:auto;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
 
-/* view toggle (topbar segmented control) */
-.viewtoggle{display:inline-flex;background:var(--brand-navy-2);border:1px solid var(--brand-line);border-radius:9px;padding:3px;gap:2px}
-.vt{font-size:12.5px;font-weight:600;color:var(--brand-ink-soft);background:transparent;border:none;cursor:pointer;
-  padding:6px 12px;border-radius:6px;font-family:inherit;transition:.12s}
-.vt:hover{color:#fff}
-.vt.active{background:var(--brand-accent);color:#fff}
+/* PQL view tag */
+.pqltag{font-size:12px;font-weight:800;letter-spacing:.06em;color:#04222a;background:var(--brand-accent-2);
+  padding:5px 10px;border-radius:6px}
 
-/* two toolbar modes */
-.tbmode{display:none;align-items:center;gap:12px;flex:1;flex-wrap:wrap}
-body.view-directory #tbDirectory{display:flex}
-body.view-guru #tbGuru{display:flex}
+/* toolbar (single PQL view) */
+#tbGuru{display:flex;align-items:center;gap:12px;flex:1;flex-wrap:wrap}
 .crumb{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-3);font-weight:500}
 .crumb-dot{width:9px;height:9px;border-radius:50%;background:var(--brand-accent-2);display:inline-block}
 .crumb .sep{color:var(--ink-3)}
@@ -111,9 +106,8 @@ body.view-guru #tbGuru{display:flex}
 .client-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
 .summary{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
 
-/* per-client card search (sidebar, guru mode only) */
-.guru-search{display:none;padding:10px 10px 4px}
-body.view-guru .guru-search{display:block}
+/* per-client card search (sidebar) */
+.guru-search{display:block;padding:10px 10px 4px}
 .guru-search input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;outline:none;background:#fbfcfe}
 .guru-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
 .item .it-cardtitle{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:4px}
@@ -315,32 +309,15 @@ body.locked .app{filter:blur(6px);pointer-events:none}
       <span class="app-name">Client Directory</span>
     </div>
     <span class="spacer"></span>
-    <div class="viewtoggle" id="viewToggle">
-      <button class="vt active" data-view="directory">Directory</button>
-      <button class="vt" data-view="guru">Guru view</button>
-    </div>
+    <span class="pqltag">PQL</span>
     <span class="count-pill" id="countPill">— clients</span>
     <button class="tbtn edit-only primary" id="btnAdd">+ Add client</button>
     <button class="tbtn edit-only" id="btnExport">Export data</button>
     <button class="tbtn" id="btnEdit">Edit mode</button>
   </header>
 
-  <!-- Toolbar -->
+  <!-- Toolbar: breadcrumb + client dropdown + totals -->
   <div class="toolbar">
-    <!-- Directory mode: global search + tier chips -->
-    <div class="tbmode" id="tbDirectory">
-      <div class="search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="search" type="text" placeholder="Search clients, contacts, addresses…" autocomplete="off" />
-      </div>
-      <div class="chips" id="chips">
-        <button class="chip active" data-f="all">All</button>
-        <button class="chip" data-f="unity">Unity</button>
-        <button class="chip" data-f="core">Core</button>
-      </div>
-      <span class="rcount" id="rcount"></span>
-    </div>
-    <!-- Guru mode: breadcrumb + client dropdown + totals -->
     <div class="tbmode" id="tbGuru">
       <div class="crumb"><span class="crumb-dot"></span>Clients <span class="sep">/</span> <span id="crumbClient">—</span></div>
       <select id="clientSelect" class="client-select" aria-label="Select client"></select>
@@ -406,7 +383,7 @@ let activeSlug = null;
 let filterMode = "all";
 let searchTerm = "";
 let editingIndex = -1; // -1 = new
-let viewMode = sessionStorage.getItem("prmt_view") || "directory"; // 'directory' | 'guru'
+let viewMode = "guru"; // PQL view is the only view
 let guruSlug = null;   // selected client in Guru view
 let guruCardIdx = 0;   // selected card index in Guru view
 let cardSearch = "";   // per-client card search term
@@ -654,6 +631,7 @@ function renderGuru(){
   if(!guruSlug || !list.some(c=>c.slug===guruSlug)) guruSlug = list.length?list[0].slug:null;
   sel.innerHTML = list.map(c=>'<option value="'+c.slug+'"'+(c.slug===guruSlug?' selected':'')+'>'+esc(c.name)+' ('+(c.cards?c.cards.length:0)+')</option>').join("");
   const cur = list.find(c=>c.slug===guruSlug);
+  $("#countPill").textContent = list.length + " clients";
   $("#crumbClient").textContent = cur?cur.name:"—";
   $("#guruSummary").textContent = (cur?cur.cards.length+" cards · ":"") + list.length + " clients · " + total + " cards total";
   renderGuruSidebar();
@@ -685,6 +663,8 @@ function renderGuruCard(){
   const card = cur.cards[guruCardIdx] || cur.cards[0];
   r.innerHTML =
     '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
+    '<div class="editbar edit-only"><span class="grow">Editing is on. Changes save to this browser — click <b>Export data</b> and commit to publish. (Edits the client\'s primary card.)</span>'+
+      '<button class="mini" id="editThis">Edit this client</button></div>'+
     '<article class="card"><div class="card-head">'+
       '<div class="kicker"><span class="dot"></span>'+esc(cur.name)+(cur.tier?' · '+esc(cur.tier)+' tier':'')+'</div>'+
       '<h1>'+esc(card.title||cur.name)+'</h1>'+
@@ -693,6 +673,7 @@ function renderGuruCard(){
     '</div>'+
     '<div class="card-body"><div class="content">'+ transformBody(card.html) +'</div></div></article>';
   hydrateWithin(r);
+  const et = $("#editThis"); if(et) et.onclick=()=>openEdit(DATA.clients.indexOf(cur));
 }
 
 /* ---------- Edit / add ---------- */
@@ -724,25 +705,25 @@ function saveEdit(){
     Object.assign(cur, obj);
     // write the body back into the primary card (preserving other board cards) or legacy html
     if(cur.cards && cur.cards.length){ cur.cards[0].html = body; } else { cur.html = body; }
-    activeSlug = cur.slug;
+    guruSlug = cur.slug;
   }else{
     obj.slug = uniqueSlug(slugify(name));
     obj.id = "local-"+Date.now();
     obj.cards = [{title:"Basic Client Info", html: body, guruUrl: obj.guruUrl}];
     DATA.clients.push(obj);
     DATA.clients.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-    activeSlug = obj.slug;
+    guruSlug = obj.slug; guruCardIdx = 0;
   }
-  persist(); closeEdit(); render(); renderReader(); toast("Saved locally — Export data to publish");
+  persist(); closeEdit(); renderGuru(); toast("Saved locally — Export data to publish");
 }
 function uniqueSlug(base){let s=base,k=2;const has=x=>DATA.clients.some(c=>c.slug===x);while(has(s)){s=base+"-"+k;k++;}return s;}
 function deleteClient(){
   if(editingIndex<0) return;
   const c=DATA.clients[editingIndex];
-  if(!confirm("Delete “"+c.name+"”? This removes it from your local copy. Export JSON to make it permanent.")) return;
+  if(!confirm("Delete “"+c.name+"”? This removes it from your local copy. Export data to make it permanent.")) return;
   DATA.clients.splice(editingIndex,1);
-  if(activeSlug===c.slug) activeSlug=null;
-  persist(); closeEdit(); render(); renderReader(); toast("Deleted locally");
+  if(guruSlug===c.slug){ guruSlug=null; guruCardIdx=0; }
+  persist(); closeEdit(); renderGuru(); toast("Deleted locally");
 }
 
 async function exportJSON(){
@@ -758,13 +739,9 @@ async function exportJSON(){
 }
 
 /* ---------- Wire up ---------- */
-$("#search").addEventListener("input",e=>{searchTerm=e.target.value;render();});
-$("#chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
-  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  filterMode=b.dataset.f;render();});
 $("#btnEdit").addEventListener("click",()=>{document.body.classList.toggle("editing");
   $("#btnEdit").classList.toggle("on");$("#btnEdit").textContent=document.body.classList.contains("editing")?"Editing ✓":"Edit mode";
-  if(activeSlug) renderReader();});
+  renderGuruCard();});
 $("#btnAdd").addEventListener("click",()=>openEdit(-1));
 $("#btnExport").addEventListener("click",exportJSON);
 $("#fCancel").addEventListener("click",closeEdit);
@@ -773,7 +750,6 @@ $("#fDelete").addEventListener("click",deleteClient);
 $("#modalBack").addEventListener("click",e=>{if(e.target===$("#modalBack"))closeEdit();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeEdit();});
 $("#lockForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#lockInput").value;if(v)tryUnlock(v);});
-$("#viewToggle").addEventListener("click",e=>{const b=e.target.closest(".vt");if(b)setView(b.dataset.view);});
 $("#clientSelect").addEventListener("change",e=>{guruSlug=e.target.value;guruCardIdx=0;cardSearch="";$("#cardSearch").value="";renderGuru();});
 $("#cardSearch").addEventListener("input",e=>{cardSearch=e.target.value;renderGuruSidebar();});
 
