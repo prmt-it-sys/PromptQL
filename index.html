@@ -406,8 +406,7 @@ const SS_KEY  = "prmt_clients_v1";   // working edits (session only)
 const SS_PASS = "prmt_pass_v1";      // access password (session only)
 const ENC_FILE = "clients.enc.json"; // encrypted data published to the repo
 const KDF_ITER = 310000;             // PBKDF2 iterations (OWASP-tier)
-const PUBLISH_HOOK = "https://data.prompt.ql.app/prmt/promptql-v2/hooks/room/46a01340-3031-4c0e-afe3-3bb4dc08b1bf/send_message"; // PromptQL room webhook (publish bridge)
-const PUBLISH_PAT  = "pql_ut_JgdGg8teg7CB3SPqam6jbjFf4XmAATjTH9u043Jb3Xg"; // room-scoped PAT — can ONLY post to the client-info room; safe to be public
+const PUBLISH_HOOK = "https://prmt-publish-relay.prometheanit.workers.dev"; // Cloudflare Worker relay -> injects the room PAT server-side & forwards to the PromptQL room webhook (PAT no longer in this page)
 const PUBLISH_PROMPT = "Run the publish_prmt_directory saved program to commit the attached clients.enc.json (hook_payload artifact) to prmt-it-sys/PromptQL. Do not decrypt it.";
 let DATA = {clients:[]};
 let ENC_META = {source:"PRMT Client Directory"}; // non-secret metadata for re-export
@@ -900,7 +899,7 @@ async function exportJSON(){
     const url = PUBLISH_HOOK + "?prompt=" + encodeURIComponent(PUBLISH_PROMPT);
     const resp = await fetch(url, {
       method: "POST",
-      headers: {"Authorization": "pat " + PUBLISH_PAT, "Content-Type": "application/json"},
+      headers: {"Content-Type": "application/json"},
       body: payload
     });
     if(!resp.ok) throw new Error("HTTP " + resp.status);
