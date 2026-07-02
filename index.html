@@ -105,6 +105,13 @@ a:hover{text-decoration:underline}
   background-repeat:no-repeat;background-position:right 12px center}
 .client-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,43,255,.12)}
 .summary{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+.tierfilter{display:inline-flex;gap:3px;margin-left:auto;background:#f1f3f8;border:1px solid var(--line);border-radius:9px;padding:3px}
+.tf{font-size:12.5px;font-weight:700;color:var(--ink-2);background:transparent;border:none;cursor:pointer;
+  padding:5px 12px;border-radius:6px;font-family:inherit;transition:.12s}
+.tf:hover{color:var(--ink)}
+.tf.active[data-t="all"]{background:var(--ink);color:#fff}
+.tf.active[data-t="Unity"]{background:var(--brand-accent);color:#fff}
+.tf.active[data-t="Core"]{background:var(--core-fg);color:#fff}
 
 /* per-client card search (sidebar) */
 .guru-search{display:block;padding:10px 10px 4px}
@@ -344,6 +351,11 @@ body.locked .app{filter:blur(6px);pointer-events:none}
       <div class="crumb"><span class="crumb-dot"></span>Clients <span class="sep">/</span> <span id="crumbClient">—</span></div>
       <select id="clientSelect" class="client-select" aria-label="Select client"></select>
       <span class="summary" id="guruSummary"></span>
+      <div class="tierfilter" id="tierFilter" role="group" aria-label="Filter by tier">
+        <button class="tf active" data-t="all">All</button>
+        <button class="tf" data-t="Unity">Unity</button>
+        <button class="tf" data-t="Core">Core</button>
+      </div>
     </div>
   </div>
 
@@ -406,6 +418,7 @@ let viewMode = "guru"; // PQL view is the only view
 let guruSlug = null;   // selected client in Guru view
 let guruCardIdx = 0;   // selected card index in Guru view
 let cardSearch = "";   // per-client card search term
+let clientTier = "all"; // tier filter: 'all' | 'Unity' | 'Core'
 
 /* ---------- Crypto (AES-256-GCM + PBKDF2-SHA256) ---------- */
 const _b64 = buf => { const b=new Uint8Array(buf); let s=""; const CH=0x8000;
@@ -653,16 +666,23 @@ function setView(mode){
 const _txt = html => { const d=document.createElement("div"); d.innerHTML=(html||"").replace(/<img[^>]*>/g," "); return (d.textContent||"").replace(/\s+/g," ").trim(); };
 
 function renderGuru(){
-  const list = DATA.clients;
-  const total = list.reduce((n,c)=>n+(c.cards?c.cards.length:0),0);
-  // populate dropdown
+  const all = DATA.clients;
+  const total = all.reduce((n,c)=>n+(c.cards?c.cards.length:0),0);
+  const shown = all.filter(c => clientTier==="all" || (c.tier||"")===clientTier);
   const sel = $("#clientSelect");
-  if(!guruSlug || !list.some(c=>c.slug===guruSlug)) guruSlug = list.length?list[0].slug:null;
-  sel.innerHTML = list.map(c=>'<option value="'+c.slug+'"'+(c.slug===guruSlug?' selected':'')+'>'+esc(c.name)+' ('+(c.cards?c.cards.length:0)+')</option>').join("");
-  const cur = list.find(c=>c.slug===guruSlug);
-  $("#countPill").textContent = list.length + " clients";
+  if(!guruSlug || !shown.some(c=>c.slug===guruSlug)) guruSlug = (shown[0]||all[0]||{}).slug || null;
+  // group the dropdown by tier so Unity / Core are visually distinct
+  const opt = c => '<option value="'+c.slug+'"'+(c.slug===guruSlug?' selected':'')+'>'+esc(c.name)+' ('+(c.cards?c.cards.length:0)+')</option>';
+  sel.innerHTML = [["Unity","Unity"],["Core","Core"],["","Other"]].map(([key,label])=>{
+    const items = shown.filter(c=>(c.tier||"")===key);
+    return items.length ? '<optgroup label="'+label+'">'+items.map(opt).join("")+'</optgroup>' : "";
+  }).join("") || '<option disabled>No clients</option>';
+  const cur = all.find(c=>c.slug===guruSlug);
+  document.querySelectorAll(".tf").forEach(b=>b.classList.toggle("active", b.dataset.t===clientTier));
+  $("#countPill").textContent = all.length + " clients";
   $("#crumbClient").textContent = cur?cur.name:"—";
-  $("#guruSummary").textContent = (cur?cur.cards.length+" cards · ":"") + list.length + " clients · " + total + " cards total";
+  const scope = clientTier==="all" ? all.length+" clients" : shown.length+" "+clientTier+" (of "+all.length+")";
+  $("#guruSummary").textContent = (cur?cur.cards.length+" cards · ":"") + scope + " · " + total + " cards total";
   renderGuruSidebar();
   renderGuruCard();
 }
@@ -890,6 +910,7 @@ $("#modalBack").addEventListener("click",e=>{if(e.target===$("#modalBack"))close
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeEdit();});
 $("#lockForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#lockInput").value;if(v)tryUnlock(v);});
 $("#clientSelect").addEventListener("change",e=>{commitCurrent();guruSlug=e.target.value;guruCardIdx=0;cardSearch="";$("#cardSearch").value="";renderGuru();});
+$("#tierFilter").addEventListener("click",e=>{const b=e.target.closest(".tf");if(!b)return;commitCurrent();clientTier=b.dataset.t;guruCardIdx=0;renderGuru();});
 $("#cardSearch").addEventListener("input",e=>{cardSearch=e.target.value;renderGuruSidebar();});
 
 load();
