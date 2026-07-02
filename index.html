@@ -265,6 +265,8 @@ body:not(.editing) .edit-only{display:none !important}
 .et-hint{font-size:12px;color:var(--ink-3);margin:2px 0 12px}
 .editing .item{position:relative}
 body:not(.editing) .cardtools{display:none}
+.verifytog{border-color:#f0c99a;color:#b9760e;background:#fdefd9}
+.verifytog.on{border-color:#bfe6cd;color:#12864a;background:#e5f6ec}
 
 /* ---------- Mobile ---------- */
 .backbtn{display:none;background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;
@@ -368,13 +370,8 @@ body.locked .app{filter:blur(6px);pointer-events:none}
     <h3 id="modalTitle">Client settings</h3>
     <div class="mbody">
       <div class="field"><label>Client name</label><input id="fName" type="text" /></div>
-      <div class="row2">
-        <div class="field"><label>Tier</label>
-          <select id="fTier"><option value="">—</option><option>Unity</option><option>Core</option></select>
-        </div>
-        <div class="field"><label>Verification</label>
-          <select id="fStatus"><option value="">—</option><option value="TRUSTED">Verified</option><option value="NEEDS_VERIFICATION">Needs review</option></select>
-        </div>
+      <div class="field"><label>Tier</label>
+        <select id="fTier"><option value="">—</option><option>Unity</option><option>Core</option></select>
       </div>
       <div class="field"><label>Tags <span class="hint">(comma separated)</span></label><input id="fTags" type="text" /></div>
       <div class="field"><label>Guru URL</label><input id="fUrl" type="text" placeholder="https://app.getguru.com/card/…" /></div>
@@ -473,10 +470,16 @@ let ENC_BLOB = null;
 function useData(obj){
   DATA = obj || {clients:[]};
   if(!Array.isArray(DATA.clients)) DATA.clients = [];
+  // Seed per-card verification once: cards inherit the client's known status the first
+  // time (verified if the client was TRUSTED, else needs-review), then are toggled per card.
+  DATA.clients.forEach(c=>{
+    const seed = c.verificationStatus==="TRUSTED";
+    (c.cards||[]).forEach(cd=>{ if(typeof cd.verified!=="boolean") cd.verified = seed; });
+  });
   ENC_META = {source: DATA.source || "PRMT Client Directory"};
   document.body.classList.remove("locked");
   $("#lock").style.display = "none";
-  setView(viewMode);   // render according to the active view (directory | guru)
+  setView(viewMode);
 }
 
 async function load(){
@@ -555,6 +558,10 @@ function vbadge(status){   // client-level verification badge
   if(status==="TRUSTED") return '<span class="badge ok">Verified</span>';
   if(status==="NEEDS_VERIFICATION") return '<span class="badge warn">Needs review</span>';
   return '';
+}
+function vcardbadge(card){ // per-card verification stamp
+  return (card && card.verified) ? '<span class="badge ok">Verified</span>'
+                                 : '<span class="badge warn">Needs review</span>';
 }
 
 function render(){
@@ -671,7 +678,7 @@ function renderGuruSidebar(){
     b.innerHTML =
       '<div class="it-cardtitle">'+esc(card.title||("Card "+(i+1)))+'</div>'+
       '<div class="it-notes">'+esc(_txt(card.html).slice(0,110))+'</div>'+
-      (vbadge(cur.verificationStatus)?'<div class="it-sub" style="margin-top:6px">'+vbadge(cur.verificationStatus)+'</div>':'');
+      '<div class="it-sub" style="margin-top:6px">'+vcardbadge(card)+'</div>';
     b.onclick=()=>{ commitCurrent(); guruCardIdx=i; document.body.classList.add("detail"); renderGuruSidebar(); renderGuruCard(); };
     list.appendChild(b);
   });
@@ -692,7 +699,7 @@ function renderGuruCard(){
       '<div class="kicker"><span class="dot"></span>'+esc(cur.name)+(cur.tier?' · '+esc(cur.tier)+' tier':'')+'</div>'+
       (editing ? '<input class="et-title" id="etTitle" value="'+esc(card.title||"")+'" placeholder="Card title" />'
                : '<h1>'+esc(card.title||cur.name)+'</h1>')+
-      '<div class="head-badges">'+vbadge(cur.verificationStatus)+tierChip(cur.tier)+
+      '<div class="head-badges">'+vcardbadge(card)+tierChip(cur.tier)+
         (cur.guruUrl?'<a class="open-guru" href="'+esc(cur.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
     '</div>';
 
@@ -701,6 +708,7 @@ function renderGuruCard(){
       '<button class="backbtn" onclick="document.body.classList.remove(\'detail\')">‹ Back to cards</button>'+
       '<div class="cardtools">'+
         '<button class="mini go" id="saveCard">✓ Save card</button>'+
+        '<button class="mini verifytog'+(card.verified?' on':'')+'" id="verifyToggle">'+(card.verified?'✓ Verified':'Mark verified')+'</button>'+
         '<button class="mini" id="addCard">+ Add card</button>'+
         '<button class="mini" id="moveUp" title="Move up">↑</button>'+
         '<button class="mini" id="moveDn" title="Move down">↓</button>'+
@@ -741,7 +749,10 @@ function renderGuruCard(){
 function commitCardFromDOM(cur){
   const t=$("#etTitle"), c=$("#etContent");
   if(!t||!c) return;
-  cur.cards[guruCardIdx] = {title: t.value.trim() || "Untitled card", html: c.innerHTML};
+  const card = cur.cards[guruCardIdx] || {};   // preserve other fields (e.g. verified)
+  card.title = t.value.trim() || "Untitled card";
+  card.html = c.innerHTML;
+  cur.cards[guruCardIdx] = card;
 }
 function commitCurrent(){   // save in-progress inline edits before navigating away
   if(!document.body.classList.contains("editing")) return;
@@ -761,9 +772,15 @@ function wireEditor(cur){
     else { document.execCommand(cmd, false, null); }
   });
   $("#saveCard").onclick=()=>{ commitCardFromDOM(cur); persist(); toast("Card saved locally — Publish to push live"); renderGuruSidebar(); };
+  $("#verifyToggle").onclick=()=>{
+    commitCardFromDOM(cur);
+    cur.cards[guruCardIdx].verified = !cur.cards[guruCardIdx].verified;
+    persist(); renderGuruSidebar(); renderGuruCard();
+    toast(cur.cards[guruCardIdx].verified ? "Marked Verified — Publish to push live" : "Marked Needs review");
+  };
   $("#addCard").onclick=()=>{
     commitCardFromDOM(cur);
-    cur.cards.splice(guruCardIdx+1, 0, {title:"New card", html:""});
+    cur.cards.splice(guruCardIdx+1, 0, {title:"New card", html:"", verified:false});
     guruCardIdx++; persist(); renderGuruSidebar(); renderGuruCard();
     setTimeout(()=>{ const t=$("#etTitle"); if(t){t.focus();t.select();} }, 30);
   };
@@ -805,7 +822,7 @@ function openEdit(idx){
   editingIndex = idx;
   const c = idx>=0 ? DATA.clients[idx] : {name:"",tier:"",tags:[],guruUrl:"",notes:"",verificationStatus:""};
   $("#modalTitle").textContent = idx>=0 ? "Client settings" : "Add new client";
-  $("#fName").value=c.name||""; $("#fTier").value=c.tier||""; $("#fStatus").value=c.verificationStatus||"";
+  $("#fName").value=c.name||""; $("#fTier").value=c.tier||"";
   $("#fTags").value=(c.tags||[]).join(", "); $("#fUrl").value=c.guruUrl||""; $("#fNotes").value=c.notes||"";
   $("#fDelete").style.display = idx>=0 ? "" : "none";
   $("#modalBack").classList.add("show");
@@ -818,7 +835,6 @@ function saveEdit(){
   const obj = {
     name,
     tier: $("#fTier").value,
-    verificationStatus: $("#fStatus").value || null,
     tags: $("#fTags").value.split(",").map(s=>s.trim()).filter(Boolean),
     guruUrl: $("#fUrl").value.trim(),
     notes: $("#fNotes").value.trim(),
@@ -829,7 +845,7 @@ function saveEdit(){
   }else{
     obj.slug = uniqueSlug(slugify(name));
     obj.id = "local-"+Date.now();
-    obj.cards = [{title:"Basic Client Info", html:""}];
+    obj.cards = [{title:"Basic Client Info", html:"", verified:false}];
     DATA.clients.push(obj);
     DATA.clients.sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     guruSlug = obj.slug; guruCardIdx = 0;
