@@ -451,6 +451,20 @@ async function decryptJSON(pass, blob){
 /* ---------- Lazy encrypted-image loading ---------- */
 let CRYPTO_KEY = null;
 const _imgCache = new Map();  // path -> object URL
+// Re-derive the image-decryption key from the cached session password + salt.
+// Needed because useData() (session-restore path) does not set CRYPTO_KEY the way
+// decryptJSON() does; without this, hydrateImage() bails on !CRYPTO_KEY and images
+// never render after an in-session edit.
+async function ensureCryptoKey(){
+  if(CRYPTO_KEY) return CRYPTO_KEY;
+  const pass = sessionStorage.getItem(SS_PASS);
+  let salt = sessionStorage.getItem("prmt_salt");
+  if(!salt){
+    try{ const r = await fetch(ENC_FILE,{cache:"no-store"}); if(r.ok){ salt = (await r.json()).salt; if(salt) sessionStorage.setItem("prmt_salt", salt);} }catch(e){}
+  }
+  if(pass && salt){ try{ CRYPTO_KEY = await _deriveKey(pass, _unb64(salt)); }catch(e){} }
+  return CRYPTO_KEY;
+}
 async function hydrateImage(img){
   const path = img.getAttribute("data-enc");
   if(!path || img.dataset.loaded || !CRYPTO_KEY) return;
@@ -500,7 +514,7 @@ function useData(obj){
 async function load(){
   // 1) Working edits from this browser session take precedence (already decrypted).
   const saved = sessionStorage.getItem(SS_KEY);
-  if(saved){ try{ useData(JSON.parse(saved)); return; }catch(e){} }
+  if(saved){ try{ const obj = JSON.parse(saved); await ensureCryptoKey(); useData(obj); return; }catch(e){} }
 
   // 2) Fetch the encrypted data blob.
   try{
