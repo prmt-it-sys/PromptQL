@@ -264,7 +264,7 @@ body:not(.editing) .edit-only{display:none !important}
 .fmtbtn{min-width:32px;height:30px;padding:0 8px;border:1px solid transparent;background:transparent;border-radius:6px;
   cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2);font-family:inherit;display:inline-flex;align-items:center;justify-content:center}
 .fmtbtn:hover{background:#eef1f6;color:var(--ink)}
-.fmtbtn.i{font-style:italic}.fmtbtn.u{text-decoration:underline}
+.fmtbtn.i{font-style:italic}.fmtbtn.u{text-decoration:underline}.fmtbtn.s{text-decoration:line-through}
 .fmtsep{width:1px;height:20px;background:var(--line);margin:0 3px}
 .content[contenteditable="true"]{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px;
   padding:12px 14px;min-height:140px;background:#fff}
@@ -757,7 +757,7 @@ function renderGuruCard(){
         '<div class="fmtbar" id="fmtbar">'+
           '<button class="fmtbtn" data-cmd="bold" title="Bold">B</button>'+
           '<button class="fmtbtn i" data-cmd="italic" title="Italic">I</button>'+
-          '<button class="fmtbtn u" data-cmd="underline" title="Underline">U</button>'+
+          '<button class="fmtbtn u" data-cmd="underline" title="Underline">U</button><button class="fmtbtn s" data-cmd="strikeThrough" title="Strikethrough">S</button>'+
           '<span class="fmtsep"></span>'+
           '<button class="fmtbtn" data-cmd="h1" title="Heading">H</button>'+
           '<button class="fmtbtn" data-cmd="insertUnorderedList" title="Bulleted list">•</button>'+
