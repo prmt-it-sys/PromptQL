@@ -159,9 +159,6 @@ article.card{background:var(--surface);border:1px solid var(--line);border-radiu
 .card-head .meta .m{display:flex;align-items:center;gap:6px}
 .card-head .meta svg{color:var(--ink-3)}
 .head-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
-.open-guru{margin-left:auto;font-size:12.5px;font-weight:700;border:1px solid #cddafc;background:#f2f6ff;
-  color:var(--accent);padding:7px 12px;border-radius:8px}
-.open-guru:hover{background:#e7efff;text-decoration:none}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .tag{font-size:11px;background:#eef1f6;color:var(--ink-2);padding:3px 10px;border-radius:20px}
 
@@ -207,7 +204,6 @@ article.card{background:var(--surface);border:1px solid var(--line);border-radiu
 .sect-caret{color:var(--ink-3);transition:transform .15s;font-size:11px;flex:none}
 .sect.open .sect-caret{transform:rotate(90deg)}
 .sect-title{font-weight:700;font-size:14.5px;color:var(--ink);flex:1;line-height:1.3}
-.sect-guru{font-size:12px;font-weight:700;color:var(--accent);white-space:nowrap;flex:none}
 .sect-body{display:none;padding:2px 18px 18px}
 .sect.open .sect-body{display:block}
 
@@ -640,7 +636,7 @@ function renderReader(){
     return '<section class="sect'+(i===0?' open':'')+'">'+
       '<button class="sect-head" data-i="'+i+'"><span class="sect-caret">▶</span>'+
         '<span class="sect-title">'+esc(card.title||('Card '+(i+1)))+'</span>'+
-        (card.guruUrl?'<a class="sect-guru" href="'+esc(card.guruUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Guru ↗</a>':'')+
+        +
       '</button><div class="sect-body">'+inner+'</div></section>';
   }).join('');
   r.innerHTML =
@@ -652,7 +648,7 @@ function renderReader(){
         (single?'':' · '+cards.length+' cards')+'</div>'+
       '<h1>'+esc(c.name)+'</h1>'+
       '<div class="head-badges">'+vbadge(c.verificationStatus)+tierChip(c.tier)+
-        (c.guruUrl?'<a class="open-guru" href="'+esc(c.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
+        +'</div>'+
       (meta.length?'<div class="meta">'+meta.join('')+'</div>':'')+
       ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
     '</div>'+
@@ -736,7 +732,7 @@ function renderGuruCard(){
       (editing ? '<input class="et-title" id="etTitle" value="'+esc(card.title||"")+'" placeholder="Card title" />'
                : '<h1>'+esc(card.title||cur.name)+'</h1>')+
       '<div class="head-badges">'+vcardbadge(card)+tierChip(cur.tier)+
-        (cur.guruUrl?'<a class="open-guru" href="'+esc(cur.guruUrl)+'" target="_blank" rel="noopener">Open in Guru ↗</a>':'')+'</div>'+
+        +'</div>'+
     '</div>';
 
   if(editing){
